@@ -1,0 +1,4 @@
+typer
+dotenv
+pandas
+Bio
