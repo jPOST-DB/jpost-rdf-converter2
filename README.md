@@ -48,7 +48,7 @@ jpconvert project --xml example/project.xml --out out/project.ttl
 You can place a `.env` file at the project root with:
 
 ```
-PEPTIDEMATCH_JAR=./lib/PeptideMatchCMD_1.0.jar
+PEPTIDEMATCH_JAR=./lib/PeptideMatchCMD_1.1.jar
 JAVA_BIN=java
 ```
 
