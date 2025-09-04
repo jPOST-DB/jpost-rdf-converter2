@@ -1,4 +1,4 @@
-# jpconverter (Python)
+# rdf-converter (Python)
 
 A pragmatic Python3 port of the **jpost-rdf-converter** with light refactoring and a bridge to the Java **PeptideMatch** tool.
 
