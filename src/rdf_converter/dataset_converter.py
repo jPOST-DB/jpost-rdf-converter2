@@ -30,6 +30,7 @@ class DatasetConverter:
             tsv_path: str, 
             fasta_path: str,
             meta_path: str,
+            pep_path: str,
             result_dir: str,
             ttl_path: str,
             peptidematch_jar: str,
@@ -40,6 +41,7 @@ class DatasetConverter:
         self.tsv_path = Path(tsv_path)
         self.fasta_path = Path(fasta_path)
         self.meta_path = Path(meta_path)
+        self.pep_path = Path(pep_path) if pep_path else None
         self.result_dir = Path(result_dir)
         self.ttl_path = Path(ttl_path)
         self.peptidematch_jar = Path(peptidematch_jar)
@@ -159,6 +161,28 @@ class DatasetConverter:
                 isoform.to_ttl(f)
 
             self.write_statistics(f, dataset, peptides, proteins, optimized_proteins, psms, spectra)
+
+        match_result_path = self.result_dir / 'peptidematch_result.txt'
+        with open(match_result_path, 'w', encoding='utf-8') as f:
+            Protein.save_peptide_matches(f, proteins)
+
+        indistinguishable_path = self.result_dir / 'indistinguishable_peptides.txt'
+        with open(indistinguishable_path, 'w', encoding='utf-8') as f:
+            Peptide.save_indistinguishable_peptides(f, peptides)
+
+        protein_groups_path = self.result_dir / 'protein_groups.txt'
+        with open(protein_groups_path, 'w', encoding='utf-8') as f:
+            Group.save_groups(f, groups)
+
+        peptide_protein_path = self.result_dir / 'peptide_protein.txt'
+        with open(peptide_protein_path, 'w', encoding='utf-8') as f:
+            Peptide.save_peptide_proteins(f, proteins)
+
+        modifications_path = self.result_dir / 'modifications.txt'
+        with open(modifications_path, 'w', encoding='utf-8') as f:
+            Psm.save_modifications(f, psms)
+
+
 
 
     def write_header(self, f) -> None:

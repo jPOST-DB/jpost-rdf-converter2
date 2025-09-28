@@ -378,7 +378,7 @@ class Protein:
 
         protein_map = {protein.get_uniprot(): protein for protein in proteins if protein.get_uniprot().find('-') < 0}
 
-        for protein in optimized_proteins:
+        for protein in proteins:
             uniprot = protein.get_uniprot()
             index = uniprot.rfind('-')
             if index < 0:
@@ -429,6 +429,8 @@ class Protein:
             if leading:
                 peptides = protein.search_peptides()
                 sequence_map[uniprot] = peptides
+            else:
+                sequence_map[uniprot] = []
 
         for protein in proteins:
             if not protein.is_leading():
@@ -448,10 +450,40 @@ class Protein:
                     if subset:
                         if count == len(leading_peptides):
                             protein.set_same(True)
-                            protein_map[uniprot].set_anchor(True)
+                            if uniprot in protein_map:
+                                protein_map[uniprot].set_anchor(True)
                         else:
                             protein.set_subset(True)
-                            protein.get_leading_proteins().append(protein_map[uniprot])
+                            if uniprot in protein_map:
+                                protein.get_leading_proteins().append(protein_map[uniprot])
+
+    @staticmethod
+    def save_peptide_matches(f, proteins: list[Protein]) -> None:
+        headers = ['Sequence', 'Uniprot', 'Isoform', 'Start', 'End']
+        f.write('\t'.join(headers) + '\n')
+
+        for protein in proteins:
+            for match in protein.get_peptide_matches():
+                row = [
+                    match.get_peptide().get_sequence(),
+                    protein.get_uniprot(),
+                    'FALSE',
+                    match.get_start(),
+                    match.get_end()
+                ]
+                f.write('\t'.join(row) + '\n')
+
+            for isoform in protein.get_isoforms():
+                for match in isoform.get_peptide_matches():
+                    row = [
+                        match.get_peptide().get_sequence(),
+                        isoform.get_uniprot(),
+                        'TRUE',
+                        match.get_start(),
+                        match.get_end()
+                    ]
+                    f.write('\t'.join(row) + '\n')
+
 
 
     @staticmethod    

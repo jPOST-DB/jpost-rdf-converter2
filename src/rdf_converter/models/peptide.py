@@ -354,3 +354,53 @@ class Peptide:
 
             peptide.set_unique(seq_count == 1)
             peptide.set_unique_at_mslevel(dummy_count == 1)
+
+    @staticmethod
+    def save_indistinguishable_peptides(f, peptides: list[Peptide]) -> None:
+        lines = []
+        max_col = 0
+        sequence_set = set()
+
+        for peptide in peptides:
+            sequence = peptide.get_dummy()
+            distinguishable = peptide.get_distinguishable_peptides()
+            if len(distinguishable) > 0:
+                if sequence not in sequence_set:
+                    row = [peptide.get_sequence()]
+                    for p in distinguishable:
+                        row.append(p.get_sequence())
+                    max_col = len(row) if len(row) > max_col else max_col
+                    lines.append(row)
+
+        headers = ['Sequence'] * max_col
+        f.write('\t'.join(headers) + '\n')
+
+        for row in lines:
+            f.write('\t'.join(row) + '\n')
+
+    @staticmethod
+    def save_peptide_proteins(f, proteins: list[Protein]) -> None:
+        headers = ['Peptide ID', 'Sequence', 'Protein ID', 'UniProt', 'Isoform', 'Begin', 'End']
+        f.write('\t'.join(headers) + '\n')
+
+        lines = []
+        for protein in proteins:
+            for match in protein.get_peptide_matches():
+                peptide = match.get_peptide()
+                start = match.get_start()
+                end = match.get_end()
+
+                row = [peptide.get_id(), peptide.get_sequence(), protein.get_id(), protein.get_uniprot(), '', start, end]
+                lines.append(row)
+
+            for isoform in protein.get_isoforms():
+                for match in isoform.get_peptide_matches():
+                    peptide = match.get_peptide()
+                    start = match.get_start()
+                    end = match.get_end()
+                    row = [peptide.get_id(), peptide.get_sequence(), isoform.get_id(), protein.get_uniprot(), isoform.get_id(), start, end]
+                    lines.append(row)
+        
+        lines.sort(key=lambda x: (x[0], x[1]))
+        for row in lines:
+            f.write('\t'.join([str(col) for col in row]) + '\n')

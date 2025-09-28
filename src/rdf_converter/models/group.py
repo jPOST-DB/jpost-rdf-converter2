@@ -95,6 +95,7 @@ class Group:
             if uniprot in group_map:
                 group = group_map[uniprot]
                 protein.set_group(group)
+                group.add_protein(protein)
 
                 if group not in peptide_map:
                     peptide_map[group] = set()
@@ -133,3 +134,41 @@ class Group:
 
                 protein.set_group(group)
         return groups
+    
+    @staticmethod
+    def save_groups(f, groups: list[Group]) -> None:
+        headers = ['Group ID', 'UniProt', 'Protein ID', 'Isoform', 'Protein Type', 'Leading Protein ID']
+        f.write('\t'.join(headers) + '\n')
+
+        for group in groups:
+            for protein in group.get_proteins():
+                row = [
+                    group.get_id(), protein.get_uniprot(), protein.get_id()
+                ]
+
+                isoforms = ''
+                for isoform in protein.get_isoforms():
+                    if isoforms:
+                        isoforms += ', '
+                    isoforms += isoform.get_id()
+                row.append(isoforms)
+
+                types = []
+                if protein.is_leading():
+                    types.append('leading protein')
+                if protein.is_anchor():
+                    types.append('anchor protein')
+                if protein.is_subset():
+                    types.append('subset protein')
+                if protein.is_same():
+                    types.append('shared protein')
+                row.append(', '.join(types))
+
+                leading = ''
+                for p in protein.get_leading_proteins():
+                    if leading:
+                        leading += ', '
+                    leading += p.get_id()
+                row.append(leading)
+
+                f.write('\t'.join(row) + '\n')

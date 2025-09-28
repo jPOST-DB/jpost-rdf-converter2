@@ -16,10 +16,31 @@ if TYPE_CHECKING:
 
 
 from .spectrum import Spectrum
-
+from .modification import Modification
 from ..utils.string_tool import is_not_empty
 
 logger = get_logger(__name__)
+
+
+@dataclass
+class PsmModification:
+    modification : Modification | None = None
+    site: str | None = None
+    position: str | None = None
+
+    def __init__(self, modification: Modification | None, site: str | None, position: str | None):
+        self.modification = modification
+        self.site = site
+        self.position = position
+
+    def get_modification(self) -> Modification | None:
+        return self.modification
+    
+    def get_site(self) -> str | None:
+        return self.site
+    
+    def get_position(self) -> str | None:
+        return self.position
 
 
 @dataclass
@@ -45,6 +66,7 @@ class Psm:
     phospho_ambiguous: list[str] = field(default_factory=list)
     representative: bool = False
     spectrum: Spectrum | None = None
+    modifications: list[PsmModification] = field(default_factory=list)
 
     counter: ClassVar[int] = 0
 
@@ -57,6 +79,7 @@ class Psm:
         self.representative = False
         self.score_map = {}
         self.phospho_ambiguous = []
+        self.modifications = []
 
 
     def get_dataset(self) -> DataSet:
@@ -180,6 +203,9 @@ class Psm:
     def set_spectrum(self, spectrum: Spectrum) -> None:
         self.spectrum = spectrum
 
+    def get_modifications(self) -> list[PsmModification]:
+        return self.modifications
+
     def set_properties(self, title: str) -> None:
         items = title.split(',')
         for item in items:
@@ -192,6 +218,7 @@ class Psm:
 
 
     def to_ttl(self, f) -> list[str]:
+        self.modifications = []
         f.write(f':{self.id} \n')
         f.write(f'    dct:identifier "{self.id}" ;\n')
 
@@ -224,7 +251,6 @@ class Psm:
             mod = token
             spece_index = token.find(' ')
             if spece_index > 0:
-                # token[:space_index] を数値に変換できれば
                 try:
                     int(token[:spece_index])
                     mod = token[spece_index + 1:]
@@ -287,6 +313,8 @@ class Psm:
                             mod_info21 = f'Site:{site}, Position: {position}'
                             mod_set21.add(mod_info21)
                         f.write(f'        a unimod:UNIMOD_{modification.get_unimod()}\n')
+                        psm_modification = PsmModification(modification, site, position)
+                        self.modifications.append(psm_modification)
                     else:
                         if mod_element not in not_found:
                             not_found.append(mod_element)                            
@@ -471,8 +499,8 @@ class Psm:
 
 
 
-    @classmethod
-    def get_psms(cls, peptides: list[Peptide]) -> tuple[list[Psm], list[Spectrum]]:
+    @staticmethod
+    def get_psms(peptides: list[Peptide]) -> tuple[list[Psm], list[Spectrum]]:
         psms = []
         spectra = []
         spectra_map = {}
@@ -498,3 +526,22 @@ class Psm:
                 psm.set_spectrum(spectrum)
 
         return psms, spectra
+    
+    @staticmethod
+    def save_modifications(f, psms: list[Psm]) -> None:
+        headers = ['Peptide ID', 'Modification', 'Site', 'Position']
+        f.write('\t'.join(headers) + '\n')
+
+        lines = []
+        for psm in psms:
+            peptide = psm.get_peptide()
+            for psm_modification in psm.get_modifications():
+                modification = psm_modification.get_modification()
+                site = psm_modification.get_site()
+                position = psm_modification.get_position()
+                if modification is not None:
+                    row = f'{peptide.get_id()}\t{modification.get_title()}\t{site}\t{position}'
+                    lines.append(row)
+
+        for line in sorted(lines):
+            f.write(f'{line}\n')
