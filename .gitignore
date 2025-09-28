@@ -1,3 +1,12 @@
+.env
 .venv
 jpost_rdf_converter2.egg-info
 **/__pycache__
+data
+output
+tmp
+src/**/.*
+.DS_Store
+.vscode
+*.log
+.*

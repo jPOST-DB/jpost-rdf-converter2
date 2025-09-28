@@ -2,3 +2,5 @@ typer
 dotenv
 pandas
 Bio
+psutil
+pulp

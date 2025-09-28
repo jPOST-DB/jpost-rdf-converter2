@@ -20,13 +20,13 @@ pip install -r requirements.txt
 pip install -e .
 
 # Show help
-rdf-convert -help
+rdf-convert --help
 
 # Example (dataset) — flags are compatible conceptually, not 1:1 yet
 rdf-convert dataset \
   --tsv example/results.tsv \
   --fasta example/proteins.fasta \
-  --meta-dir example/meta \
+  --meta-data example/meta.xml \
   --out out/example.ttl \
   --rev JPST000000 \
   --branch 1 \

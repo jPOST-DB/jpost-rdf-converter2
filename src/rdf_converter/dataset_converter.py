@@ -1,139 +1,251 @@
+from datetime import datetime
 from pathlib import Path
-from typing import Optional, Dict, List
-import pandas as pd
-from .models.core import Peptide, Protein, PSM
-from .io.tsv import write_tsv
-from .io.fasta import read_fasta
-from .peptide_match import run_peptidematch
+import pathlib
+import psutil
+import datetime
 from .utils.logging import get_logger
+from .models.project import Project
+from .models.dataset import DataSet
+from .models.sample import Sample
+from .models.fractionation import Fractionation
+from .models.enzyme import Enzyme
+from .models.msmode import MsMode
+from .models.rawdata_list import RawDataList
+from .models.peptide import Peptide
+from .models.protein import Protein
+from .models.isoform import Isoform
+from .models.group import Group 
+from .models.psm import Psm
+from .models.spectrum import Spectrum
+
+import os
+
+from rdf_converter.models import protein
 
 logger = get_logger(__name__)
 
 class DatasetConverter:
-    """Pythonic re-implementation of Dataset conversion.
-
-    This is a **scaffold**: adjust column mappings to your TSV format.
-
-    """
-    def __init__(self, tsv_path: str, fasta_path: str, meta_dir: Optional[str] = None):
+    def __init__(
+            self, 
+            rev: str,
+            branch: str,
+            tsv_path: str, 
+            fasta_path: str,
+            meta_path: str,
+            result_dir: str,
+            ttl_path: str,
+            peptidematch_jar: str,
+            java_bin: str
+    ):
+        self.rev = rev
+        self.branch = branch
         self.tsv_path = Path(tsv_path)
         self.fasta_path = Path(fasta_path)
-        self.meta_dir = Path(meta_dir) if meta_dir else None
-        self.df: Optional[pd.DataFrame] = None
-        self.fasta: Dict[str, str] = {}
-        self.peptides: List[Peptide] = []
-        self.proteins: Dict[str, Protein] = {}
-        self.psms: List[PSM] = []
+        self.meta_path = Path(meta_path)
+        self.result_dir = Path(result_dir)
+        self.ttl_path = Path(ttl_path)
+        self.peptidematch_jar = Path(peptidematch_jar)
+        self.java_bin = java_bin
 
-    def load(self):
-        logger.info(f"Reading TSV: {self.tsv_path}")
-        self.df = pd.read_csv(self.tsv_path, sep='\t')
-        logger.info(f"Reading FASTA: {self.fasta_path}")
-        self.fasta = read_fasta(str(self.fasta_path))
 
-    def map_columns(self, columns: Dict[str,str] = None):
-        """Map your dataset's column names to standard keys.
+    def get_work_folder(self) -> pathlib.Path:
+        tmp_dir = pathlib.Path('tmp')
+        tmp_dir.mkdir(exist_ok=True)
 
-        Provide a dict like:
+        pid = str(psutil.Process().pid)
 
-            {
+        now = datetime.datetime.now()
+        folder_name = now.strftime(f'%Y%m%d%H%M%S%f')[:-3] + f'_{pid}'
 
-              'sequence': 'PeptideSequence',
+        folder_path = tmp_dir / folder_name
+        folder_path.mkdir(exist_ok=True)
 
-              'charge': 'Charge',
+        return folder_path
+    
 
-              'spectrum_id': 'SpectrumID',
+    def convert(self) -> None:
+        work_dir = self.get_work_folder().resolve()
+        logger.info(f'Working directory: {work_dir}')
 
-              'protein': 'ProteinAccession',
+        project = Project.read_project(str(self.meta_path))
+        project.set_id(self.rev)
+        dataset = DataSet(project, self.branch)
 
-              'score': 'Score'
+        sample = Sample.read_sample(dataset, str(self.meta_path))
+        logger.info(f'{sample}')
 
-            }
+        fractionation = Fractionation.read_fractionation(dataset, str(self.meta_path))
+        logger.info(f'{fractionation}')
+        
+        enzyme = Enzyme.read_enzyme(dataset, str(self.meta_path))
+        logger.info(f'{enzyme}')
 
-        """
-        if columns is None:
-            columns = {
-                'sequence': 'PeptideSequence',
-                'charge': 'Charge',
-                'spectrum_id': 'SpectrumID',
-                'protein': 'ProteinAccession',
-                'score': 'Score',
-            }
-        assert self.df is not None, "Call load() first"
-        missing = [v for v in columns.values() if v not in self.df.columns]
-        if missing:
-            logger.warning(f"Missing columns in TSV (ok for scaffold): {missing}")
-        self.df = self.df.rename(columns={v:k for k,v in columns.items() if v in self.df.columns})
+        ms_mode = MsMode.read_ms_mode(dataset, str(self.meta_path))
+        logger.info(f'{ms_mode}')
 
-    def build_models(self):
-        assert self.df is not None, "Call load() first"
-        for _, row in self.df.iterrows():
-            seq = str(row.get('sequence', '')).strip()
-            if not seq:
-                continue
-            pep = Peptide(sequence=seq, charge=row.get('charge'))
-            prot = str(row.get('protein','')).strip() or None
-            if prot:
-                pep.protein_ids.append(prot)
-                if prot not in self.proteins:
-                    self.proteins[prot] = Protein(accession=prot)
-                self.proteins[prot].peptides.append(pep)
-            self.peptides.append(pep)
-            self.psms.append(PSM(
-                spectrum_id=str(row.get('spectrum_id','')),
-                sequence=seq,
-                charge=row.get('charge'),
-                score=row.get('score'),
-                protein=prot
-            ))
+        raw_data_list = RawDataList.read_rawdata_list(dataset, str(self.meta_path))
+        logger.info(f'{raw_data_list}')
 
-    def write_intermediate(self, out_dir: str):
-        out = Path(out_dir)
-        write_tsv(out / "peptides.tsv", ({
-            "sequence": p.sequence,
-            "charge": p.charge,
-            "protein_ids": ",".join(p.protein_ids),
-            "modifications": p.modifications or ""
-        } for p in self.peptides))
+        peptides = Peptide.read_peptides(dataset, str(self.tsv_path))        
+        logger.info(f'Peptides: {len(peptides)}')
 
-        write_tsv(out / "proteins.tsv", ({
-            "accession": pr.accession,
-            "n_peptides": len(pr.peptides),
-            "is_leading": pr.is_leading,
-            "is_anchor": pr.is_anchor
-        } for pr in self.proteins.values()))
+        psms, spectra = Psm.get_psms(peptides)
+        logger.info(f'PSMs: {len(psms)}')
+        logger.info(f'Spectra: {len(spectra)}')
 
-        write_tsv(out / "psms.tsv", ({
-            "spectrum_id": x.spectrum_id,
-            "sequence": x.sequence,
-            "charge": x.charge,
-            "score": x.score,
-            "protein": x.protein
-        } for x in self.psms))
+        protein_pair = Protein.get_protein_list(peptides, str(work_dir), str(self.fasta_path))
+        proteins = protein_pair['proteins']
+        peptides = protein_pair['peptides']
+        logger.info(f'Hit Proteins: {len(proteins)}, Hit Peptides: {len(peptides)}')
 
-    def run_peptidematch(self, jar_path: str, out_dir: str, java_bin: str = "java") -> Optional[str]:
-        # Prepare peptides list
-        out = Path(out_dir)
-        peps_txt = out / "peptides.txt"
-        peps_txt.parent.mkdir(parents=True, exist_ok=True)
-        with open(peps_txt, "w", encoding="utf-8") as f:
-            for p in sorted({p.sequence for p in self.peptides}):
-                f.write(p + "\n")
-        out_tsv = out / "peptidematch.tsv"
-        rc = run_peptidematch(jar_path, str(self.fasta_path), str(peps_txt), str(out_tsv), java_bin=java_bin)
-        if rc != 0:
-            logger.warning("PeptideMatch returned non-zero exit status")
-        return str(out_tsv) if out_tsv.exists() else None
+        optimized_proteins = Protein.optimize(proteins)
+        optimization_file = work_dir / 'optimization.txt'
+        with open(optimization_file, 'w') as f:
+            for protein in optimized_proteins:
+                f.write(f'{protein.get_uniprot()}\n')
+        logger.info(f'Optimized Proteins: {len(optimized_proteins)}')
 
-    def to_turtle(self, out_ttl: str, dataset_id: str, rev: str, branch: int):
-        # Minimal placeholder TTL writer. Extend as needed.
-        Path(out_ttl).parent.mkdir(parents=True, exist_ok=True)
-        with open(out_ttl, "w", encoding="utf-8") as w:
-            w.write(f"@prefix jpost: <http://jpost.org/ontology/> .\n")
-            w.write(f"@prefix : <http://jpost.org/resource/> .\n\n")
-            w.write(f":{dataset_id} a jpost:Dataset ; jpost:rev \"{rev}\" ; jpost:branch {branch} .\n")
-            for pr in self.proteins.values():
-                w.write(f":{dataset_id} jpost:hasProtein :{pr.accession} .\n")
-            for p in self.peptides:
-                pid = p.sequence
-                w.write(f":{dataset_id} jpost:hasPeptide :{pid} .\n")
+        proteins, isoforms = Protein.create_isoforms(proteins, optimized_proteins)
+        logger.info(f'Proteins: {len(proteins)}, Isoforms: {len(isoforms)}')
+
+        groups = Group.create_groups(dataset, proteins, optimized_proteins)
+        logger.info(f'Groups: {len(groups)}')
+
+        Protein.check_proteins(proteins)
+        Peptide.check_peptides(proteins, peptides)
+
+        self.write_ttl(self.ttl_path, project, dataset, peptides, proteins, optimized_proteins, isoforms, groups, psms, spectra)
+
+
+    def write_ttl(
+            self, 
+            ttl_path: pathlib.Path, 
+            project: Project,
+            dataset: DataSet,
+            peptides: list[Peptide],
+            proteins: list[Protein],
+            optimized_proteins: list[Protein],
+            isoforms: list[Isoform],
+            groups: list[Group],
+            psms: list[Psm],
+            spectra: list[Spectrum]
+    ) -> None:
+        with open(ttl_path, 'w', encoding='utf-8') as f:
+            self.write_header(f)
+            project.to_ttl(f)
+            dataset.to_ttl(f)
+
+            for spectrum in spectra:
+                spectrum.to_ttl(f)
+
+            all_not_found = []
+            for psm in psms:
+                not_found = psm.to_ttl(f)
+                all_not_found.extend(not_found)
+
+            all_not_found.sort()
+            all_not_found = list(dict.fromkeys(all_not_found))
+            for not_found_modification in all_not_found:
+                logger.warning(f'Modification not found: {not_found_modification}') 
+
+            for peptide in peptides:
+                peptide.to_ttl(f)
+
+            for group in groups:
+                group.to_ttl(f)
+
+            for protein in proteins:
+                protein.to_ttl(f)
+
+            for isoform in isoforms:
+                isoform.to_ttl(f)
+
+            self.write_statistics(f, dataset, peptides, proteins, optimized_proteins, psms, spectra)
+
+
+    def write_header(self, f) -> None:
+        headers = [
+            '@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .',
+			'@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .', '@prefix dct: <http://purl.org/dc/terms/> .',
+			'@prefix uniprot: <http://purl.uniprot.org/uniprot/> .',
+			'@prefix isoforms: <http://purl.uniprot.org/isoforms/> .',
+			'@prefix idup: <http://identifiers.org/uniprot/> .',
+			'@prefix taxonomy: <http://identifiers.org/taxonomy/> .',
+			'@prefix obo: <http://purl.obolibrary.org/obo/> .',
+			'@prefix ncit: <http://ncicb.nci.nih.gov/xml/owl/EVS/Thesaurus.owl#> .',
+			'@prefix unimod: <http://www.unimod.org/obo/unimod.obo#> .',
+			'@prefix sio: <http://semanticscience.org/resource/> .', '@prefix foaf: <http://xmlns.com/foaf/0.1/> .',
+			'@prefix faldo: <http://biohackathon.org/resource/faldo#> .',
+			'@prefix skos: <http://www.w3.org/2004/02/skos/core#> .',
+			'@prefix px: <https://github.com/PX-RDF/ontology/blob/master/px.owl#> .',
+			'@prefix pxd: <http://proteomecentral.proteomexchange.org/dataset/> .',
+			'@prefix jpost: <http://rdf.jpostdb.org/ontology/jpost.owl#> .',
+			'@prefix jrepo: <https://repository.jpostdb.org/entry/> .',
+			'@prefix bid: <http://rdf.jpostdb.org/bid/> .',
+			'@prefix vcard: <http://www.w3.org/2006/vcard/ns#> .',
+			'@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .',
+			'@prefix : <http://rdf.jpostdb.org/entry/> .'
+        ]
+
+        for line in headers:
+            f.write(f'{line}\n')
+        f.write('\n')
+
+    def write_statistics(
+            self, 
+            f, 
+            dataset: DataSet,
+            peptides: list[Peptide],
+            proteins: list[Protein],
+            optimizaed_proteins: list[Protein],
+            psms: list[Psm],
+            spectra: list[Spectrum]
+    ) -> None:
+        f.write(f':{dataset.get_id()} \n')
+        f.write('    sio:SIO_000216 [\n')
+        f.write('        a jpost:NumOfPsms ;\n')
+        f.write(f'        sio:SIO_000300 {len(psms)} ;\n')
+        f.write('        rdfs:label "Number of PSMs"\n')
+        f.write('    ] ;\n')
+
+        f.write('    sio:SIO_000216 [\n')
+        f.write('        a jpost:NumOfSpectra ;\n')
+        f.write(f'        sio:SIO_000300 {len(spectra)} ;\n')
+        f.write('        rdfs:label "Number of Spectra"\n')
+        f.write('    ] ;\n')
+
+        f.write('    sio:SIO_000216 [\n')
+        f.write('        a jpost:NumOfPeptides ;\n')
+        f.write(f'        sio:SIO_000300 {len(peptides)} ;\n')
+        f.write('        rdfs:label "Number of Peptides"\n')
+        f.write('    ] ;\n')
+
+        f.write('    sio:SIO_000216 [\n')
+        f.write('        a jpost:NumOfMatchedProteins ;\n')
+        f.write(f'        sio:SIO_000300 {len(proteins)} ;\n')
+        f.write('        rdfs:label "Number of Matched Proteins"\n')
+        f.write('    ] ;\n')
+
+        f.write('    sio:SIO_000216 [\n')
+        f.write('        a jpost:NumOfProteinsWithUniquePeptide ;\n')
+        f.write(f'        sio:SIO_000300 {len(optimizaed_proteins)} ;\n')
+        f.write('        rdfs:label "Number of proteins with unique peptide"\n')
+        f.write('    ] ;\n')
+
+        f.write('    sio:SIO_000216 [\n')
+        f.write('        a jpost:NumOfRawData ;\n')
+        f.write(f'        sio:SIO_000300 {len(dataset.get_rawdata_list().get_list())} ;\n')
+        f.write('        rdfs:label "Number of raw data"\n')
+        f.write('    ] ;\n')
+
+
+        leading_count = 0
+        for protein in proteins:
+            if protein.is_leading():
+                leading_count += 1
+
+        f.write('    sio:SIO_000216 [\n')
+        f.write('        a jpost:NumOfLeadingProteins ;\n')
+        f.write(f'        sio:SIO_000300 {leading_count} ;\n')
+        f.write('        rdfs:label "Number of leading proteins"\n')
+        f.write('    ] .\n\n')

@@ -1,0 +1,34 @@
+[19:07:31] INFO     Working directory:                                                                  dataset_converter.py:65
+                    C:\Users\satst\git\jpost-rdf-converter2\tmp\20250927190731702_10820                                        
+           INFO     Sample(id=SMP1697_1, species=9606, sample_type=C16403, cell_line_id=CLO:0003684,    dataset_converter.py:71
+                    cell_line=HeLa cell, disease=, disease_id=None, disease_class=None, organ=)                                
+           INFO     Fractionation(id=FRC1697_1, subcellular_fractionation=Cytosol,                      dataset_converter.py:74
+                    subcellular_fractions=None, subcellular_replicates=None,                                                   
+                    peptide_fractionation=phosphopeptide enrichment by HAMMOC method,                                          
+                    peptide_fractions=1, peptide_replicates=1, protein_fractionation=None,                                     
+                    protein_fractions=None, protein_replicates=1)                                                              
+           INFO     Enzyme(id=ENZ1697_1, species=Homo sapiens (Human), enzymes=['Trypsin/P'],           dataset_converter.py:77
+                    fixed_mods=[Modification(title='Carbamidomethyl (C)', unimod='4', site='C',                                
+                    clazz='Chemical derivative')], variable_mods=[Modification(title='Oxidation (M)',                          
+                    unimod='35', site='M', clazz='Artefact'), Modification(title='Phospho (S)',                                
+                    unimod='21', site='S', clazz='Post-translational'), Modification(title='Phospho                            
+                    (T)', unimod='21', site='T', clazz='Post-translational'),                                                  
+                    Modification(title='Phospho (Y)', unimod='21', site='Y',                                                   
+                    clazz='Post-translational')])                                                                              
+           INFO     MsMode(id=MSM1697_1, instrument=MS:1000449, instrument_mode=JPO:005,                dataset_converter.py:80
+                    quantification_method=None, purpose=JPO:011, comments=None)                                                
+           INFO     RawDataList(dataset=DS1697_1, files=1)                                              dataset_converter.py:83
+           INFO     Peptides: 553                                                                       dataset_converter.py:86
+           INFO     PSMs: 2440                                                                          dataset_converter.py:91
+           INFO     Creating PeptideMatch DB index: ['C:/opt/pleiades/2025-06/java/21/bin/java', '-jar',         protein.py:210
+                    './lib/PeptideMatchCMD_1.1.jar', '-a', 'index', '-d',                                                      
+                    'data\\JPST001697\\sprot_human_20201019.fasta', '-i',                                                      
+                    WindowsPath('C:/Users/satst/git/jpost-rdf-converter2/tmp/20250927190731702_10820/db_index')]               
+[19:08:00] INFO     Executing PeptideMatch: ['C:/opt/pleiades/2025-06/java/21/bin/java', '-jar',                 protein.py:254
+                    './lib/PeptideMatchCMD_1.1.jar', '-a', 'query', '-l', '-Q',                                                
+                    'C:\\Users\\satst\\git\\jpost-rdf-converter2\\tmp\\20250927190731702_10820\\peptides.txt',                 
+                    '-i', 'C:\\Users\\satst\\git\\jpost-rdf-converter2\\tmp\\20250927190731702_10820\\db_index',               
+                    '-o',                                                                                                      
+                    'C:\\Users\\satst\\git\\jpost-rdf-converter2\\tmp\\20250927190731702_10820\\peptide_matches.               
+                    txt']                                                                                                      
+[19:08:05] INFO     Proteins: 645, Hit Peptides: 553                                                    dataset_converter.py:96
