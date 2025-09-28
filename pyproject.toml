@@ -5,7 +5,7 @@ build-backend = 'setuptools.build_meta'
 
 [project]
 name = 'jpost-rdf-converter2'
-version = '0.1.0'
+version = '1.0.0'
 requires-python = '>=3.9'
 
 [tool.setuptools]
@@ -16,4 +16,5 @@ where = ['src']
 include = ['rdf_converter*']
 
 [project.scripts]
-rdf-convert = 'rdf_converter.cli:app'
+rdf-convert = 'rdf_converter.cli_converter:app'
+protein-optimize = 'rdf_converter.cli_optimizer:app'

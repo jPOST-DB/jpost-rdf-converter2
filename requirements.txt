@@ -4,3 +4,5 @@ pandas
 Bio
 psutil
 pulp
+requests
+tqdm

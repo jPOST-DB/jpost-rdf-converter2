@@ -17,7 +17,6 @@ def dataset(
     rev: str = typer.Option(..., '--rev', help='rev JPST ID'),
     branch: int = typer.Option(..., '--branch', help='Branch number'),
 ):
-    '''Convert dataset TSV + FASTA into TTL, with optional PeptideMatch integration.'''
     load_dotenv()
     peptidematch_jar = os.getenv('PEPTIDEMATCH_JAR')
     java_bin = os.getenv('JAVA_BIN', 'java')

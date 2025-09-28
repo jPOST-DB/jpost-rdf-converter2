@@ -20,8 +20,6 @@ from .models.spectrum import Spectrum
 
 import os
 
-from rdf_converter.models import protein
-
 logger = get_logger(__name__)
 
 class DatasetConverter:
