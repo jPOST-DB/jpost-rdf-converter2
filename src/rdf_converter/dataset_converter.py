@@ -17,6 +17,7 @@ from .models.isoform import Isoform
 from .models.group import Group 
 from .models.psm import Psm
 from .models.spectrum import Spectrum
+from .models.pep import Pep
 
 import os
 
@@ -93,6 +94,10 @@ class DatasetConverter:
         logger.info(f'PSMs: {len(psms)}')
         logger.info(f'Spectra: {len(spectra)}')
 
+        if self.pep_path:
+            peps = Pep.read_pep(dataset, str(self.pep_path))
+            logger.info(f'PEPs: {len(peps)}')
+
         protein_pair = Protein.get_protein_list(peptides, str(work_dir), str(self.fasta_path))
         proteins = protein_pair['proteins']
         peptides = protein_pair['peptides']
@@ -114,7 +119,7 @@ class DatasetConverter:
         Protein.check_proteins(proteins)
         Peptide.check_peptides(proteins, peptides)
 
-        self.write_ttl(self.ttl_path, project, dataset, peptides, proteins, optimized_proteins, isoforms, groups, psms, spectra)
+        self.write_ttl(self.ttl_path, project, dataset, peptides, proteins, optimized_proteins, isoforms, groups, psms, spectra, peps)
 
 
     def write_ttl(
@@ -128,7 +133,9 @@ class DatasetConverter:
             isoforms: list[Isoform],
             groups: list[Group],
             psms: list[Psm],
-            spectra: list[Spectrum]
+            spectra: list[Spectrum],
+            peps: list[Pep]
+
     ) -> None:
         with open(ttl_path, 'w', encoding='utf-8') as f:
             self.write_header(f)
@@ -160,7 +167,10 @@ class DatasetConverter:
             for isoform in isoforms:
                 isoform.to_ttl(f)
 
-            self.write_statistics(f, dataset, peptides, proteins, optimized_proteins, psms, spectra)
+            self.write_statistics(f, dataset, peptides, proteins, optimized_proteins, psms, spectra, peps)
+
+            for pep in peps:
+                pep.to_ttl(f)
 
         match_result_path = self.result_dir / 'peptidematch_result.txt'
         with open(match_result_path, 'w', encoding='utf-8') as f:
@@ -221,7 +231,8 @@ class DatasetConverter:
             proteins: list[Protein],
             optimizaed_proteins: list[Protein],
             psms: list[Psm],
-            spectra: list[Spectrum]
+            spectra: list[Spectrum],
+            peps: list[Pep]
     ) -> None:
         f.write(f':{dataset.get_id()} \n')
         f.write('    sio:SIO_000216 [\n')

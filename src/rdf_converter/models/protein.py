@@ -6,11 +6,16 @@ from typing import Optional, List, Dict, Tuple
 import logging
 from typing import TYPE_CHECKING
 
+from collections import defaultdict
+
 if TYPE_CHECKING:
-    from .dataset import DataSet
-    from .peptide import Peptide
+    from .dataset import DataSet    
     from .group import Group
 from .isoform import Isoform
+from .peptide import Peptide
+from .fasta import Fasta
+
+
 
 logger = logging.getLogger(__name__)
 
@@ -29,20 +34,29 @@ from pathlib import Path
 @dataclass
 class PeptideMatch:
     peptide: Peptide | None = None
+    hit_sequence: str | None = None
     start: str | None = None
     end: str | None = None
+    matched_l_eq_i_positions: str | None = None
 
     def __init__(self):
         self.peptide = None
         self.start = None
         self.end = None
+        self.matched_l_eq_i_positions = None
 
     def set_peptide(self, peptide: Peptide) -> None:
         self.peptide = peptide
 
     def get_peptide(self) -> Peptide | None:
         return self.peptide
+
+    def get_hit_sequence(self) -> str | None:
+        return self.hit_sequence
     
+    def set_hit_sequence(self, hit_sequence: str) -> None:
+        self.hit_sequence = hit_sequence
+
     def set_start(self, start: str) -> None:
         self.start = start
 
@@ -54,6 +68,12 @@ class PeptideMatch:
 
     def get_end(self) -> str | None:
         return self.end
+    
+    def set_matched_l_eq_i_positions(self, positions: str) -> None:
+        self.matched_l_eq_i_positions = positions
+
+    def get_matched_l_eq_i_positions(self) -> str | None:
+        return self.matched_l_eq_i_positions
     
     def to_ttl(self, f) -> None:
         f.write(f'    jpost:hasPeptideEvidence [\n')
@@ -79,6 +99,7 @@ class PeptideMatch:
 class Protein:
     dataset: DataSet | None = None
     id: str | None = None
+    title: str | None = None
     uniprot: str | None = None
     peptides: List[PeptideMatch] = field(default_factory=list)
     type: str | None = None
@@ -91,10 +112,11 @@ class Protein:
     leading_protein: list[Protein] = field(default_factory=list)
     isoforms: list[Isoform] = field(default_factory=list)
 
-    def __init__(self, dataset: DataSet, uniprot: str):
+    def __init__(self, dataset: DataSet, uniprot: str, title: str):
         self.dataset = dataset
         self.id = f'PRT{dataset.get_number()}_{uniprot}'
         self.uniprot = uniprot
+        self.title = title
         self.peptide_matches = []
         self.type = None
         self.group = None
@@ -114,7 +136,10 @@ class Protein:
     
     def get_uniprot(self) -> str | None:
         return self.uniprot
-    
+
+    def get_title(self) -> str | None:
+        return self.title
+
     def get_peptide_matches(self) -> list[PeptideMatch]:
         return self.peptide_matches
     
@@ -130,12 +155,27 @@ class Protein:
     def set_group(self, group: Group) -> None:
         self.group = group
 
-    def add_match(self, peptide: Peptide, start: str, end: str) -> None:
-        match = PeptideMatch()
-        match.set_peptide(peptide)
-        match.set_start(start)
-        match.set_end(end)
-        self.peptide_matches.append(match)
+    def add_match(
+            self, 
+            peptide: Peptide, 
+            start: str, 
+            end: str, 
+            hit_sequence: str, 
+            matched_l_eq_i_positions: str
+    ) -> None:
+        flag = True
+        for match in self.peptide_matches:
+            if match.get_peptide().get_sequence() == peptide.get_sequence() and match.get_start() == start and match.get_end() == end:
+                flag = False
+        
+        if flag:
+            match = PeptideMatch()
+            match.set_peptide(peptide)
+            match.set_start(start)
+            match.set_end(end)
+            match.set_hit_sequence(hit_sequence)
+            match.set_matched_l_eq_i_positions(matched_l_eq_i_positions)
+            self.peptide_matches.append(match)
 
     def is_in_optimization_list(self) -> bool:
         return self.in_optimization_list
@@ -255,6 +295,11 @@ class Protein:
 
 
     @staticmethod
+    def extract_uniprot_id(uniprot: str) -> str:
+        uniprot_id = uniprot.split('|')[1] if '|' in uniprot else uniprot
+        return uniprot_id       
+
+    @staticmethod
     def create_db_index(fasta_path: str, work_dir: str) -> Path:
         load_dotenv()
         java_bin = os.getenv('JAVA_BIN', 'java')
@@ -301,6 +346,7 @@ class Protein:
             '-a',
             'query',
             '-l',
+            '-e',
             '-Q',
             str(peptide_list_file),
             '-i',
@@ -328,9 +374,20 @@ class Protein:
         db_index = Protein.create_db_index(fasta_path, work_dir)
         peptide_match_file = Protein.execute_peptide_match(peptides, db_index, work_dir)
 
-        peptide_map = {peptide.get_sequence(): peptide for peptide in peptides}
+        fasta_list = Fasta.read_fasta(fasta_path)
+        fasta_map = {Protein.extract_uniprot_id(fasta.get_title()): fasta for fasta in fasta_list}
+
+        peptide_map = {}
+        for peptide in peptides:
+            dummy = peptide.get_dummy()
+            if dummy in peptide_map:
+                peptide_map[dummy].append(peptide)
+            else:
+                peptide_map[dummy] = [peptide]
+
         protein_map = {}
         sequence_set = set(peptide_map.keys())
+        hit_set = set()
 
         with open(peptide_match_file, 'r') as f:
             for line in f:
@@ -338,21 +395,42 @@ class Protein:
                     parts = line.strip().split('\t')
                     if len(parts) >= 5:
                         sequence = parts[0]
+                        dummy = Peptide.create_dummy(sequence)
                         uniprot = parts[1]
                         uniprot_id = uniprot.split('|')[1] if '|' in uniprot else uniprot
-                        start = parts[2]
-                        end = parts[3]
+                        start = parts[3]
+                        end = parts[4]
+                        matched_l_eq_i_positions = parts[5] if len(parts) > 5 else ''
 
-                        peptide = peptide_map.get(sequence)
-                        protein = protein_map.get(uniprot_id)
-                        if protein is None:
-                            protein = Protein(peptide.get_dataset(), uniprot_id)
-                            protein_map[uniprot_id] = protein
+                        fasta = fasta_map.get(uniprot_id)
+                        hit_sequence = sequence
+                        if fasta is not None:
+                            start_position = int(start)
+                            end_position = int(end)
+                            protein_sequence = fasta.get_sequence()
+                            step = 1
+                            if start_position > end_position:
+                                step = -1
+                            hit_sequence = protein_sequence[start_position - 1: end_position: step]
+                            if len(hit_sequence) == 0:
+                                logger.warning(f'Hit sequence is empty for Uniprot ID: {uniprot_id}, start: {start}, end: {end}')
+                        else:
+                            logger.warning(f'Fasta not found for Uniprot ID: {uniprot_id}')
+
+                        hit_str = f'{dummy}_{uniprot_id}_{start}_{end}'
+                        if hit_str not in hit_set:
+                            hit_set.add(hit_str)
+                            protein = protein_map.get(uniprot_id)                            
+                            if protein is None:
+                                protein = Protein(peptide.get_dataset(), uniprot_id, uniprot)
+                                protein_map[uniprot_id] = protein
                             proteins.append(protein)
 
-                        protein.add_match(peptide, start, end)
-                        if sequence in sequence_set:
-                            sequence_set.remove(sequence)
+                        if dummy in peptide_map:
+                            for peptide in peptide_map[dummy]:
+                                protein.add_match(peptide, start, end, hit_sequence, matched_l_eq_i_positions)
+                                if peptide.get_sequence() in sequence_set:
+                                    sequence_set.remove(peptide.get_sequence())
 
         last_peptides = [pep for pep in peptides if not pep.get_sequence() in sequence_set]
 
@@ -390,7 +468,7 @@ class Protein:
                 uniprot = uniprot[:index]
                 base_protein = protein_map.get(uniprot)
                 if base_protein is not None:
-                    base_protein = Protein(protein.get_dataset(), uniprot)
+                    base_protein = Protein(protein.get_dataset(), uniprot, protein.get_title())
                     protein_map[uniprot] = base_protein
                     new_proteins.append(base_protein)
 
@@ -409,57 +487,56 @@ class Protein:
 
     @staticmethod
     def check_proteins(proteins: list[Protein]) -> None:
-        protein_map = {}
-        sequence_map = {}
+        protein_map = {p.get_uniprot(): p for p in proteins}
 
-        for protein in proteins:
-            uniprot = protein.get_uniprot()
-            protein_map[uniprot] = protein
+        leading_flag = {}
+        for p in proteins:
+            leading = p.is_in_optimization_list() or any(
+                iso.is_in_optimization_list() for iso in p.get_isoforms()
+            )
+            p.set_leading(leading)
+            p.set_anchor(False)
+            p.set_same(False)
+            p.set_subset(False)
+            leading_flag[p.get_uniprot()] = leading
 
-            leading = protein.is_in_optimization_list()
-            for isoform in protein.get_isoforms():
-                if isoform.is_in_optimization_list():
-                    leading = True
+        pep_set_by_u = {}
+        for p in proteins:
+            uniprot = p.get_uniprot()
+            peps = p.search_peptides()
+            pep_set_by_u[uniprot] = frozenset(peptide.get_dummy() for peptide in peps)
 
-            protein.set_leading(leading)
-            protein.set_anchor(False)
-            protein.set_same(False)
-            protein.set_subset(False)
+        leading_items = [(u, pep_set_by_u[u]) for u in pep_set_by_u.keys() if leading_flag[u]]
 
-            if leading:
-                peptides = protein.search_peptides()
-                sequence_map[uniprot] = peptides
-            else:
-                sequence_map[uniprot] = []
+        exact_map = defaultdict(list)  # frozenset -> [uniprot,...]
+        for u, s in leading_items:
+            exact_map[s].append(u)
 
-        for protein in proteins:
-            if not protein.is_leading():
-                peptides = protein.search_peptides()
+        for p in proteins:
+            if not p.is_leading():
+                u = p.get_uniprot()
+                S = pep_set_by_u[u]
 
-                for uniprot in protein_map.keys():
-                    leading_peptides = sequence_map[uniprot]
-                    subset = True
-                    count = 0
-                    for peptide in peptides:
-                        for leading_peptide in leading_peptides:
-                            if peptide.get_dummy() == leading_peptide.get_dummy():
-                                count += 1
-                            else:
-                                subset = False
-                    
-                    if subset:
-                        if count == len(leading_peptides):
-                            protein.set_same(True)
-                            if uniprot in protein_map:
-                                protein_map[uniprot].set_anchor(True)
-                        else:
-                            protein.set_subset(True)
-                            if uniprot in protein_map:
-                                protein.get_leading_proteins().append(protein_map[uniprot])
+                if S:
+                    has_same = False
+                    if S in exact_map:
+                        p.set_same(True)
+                        for lead_u in exact_map[S]:
+                            protein_map[lead_u].set_anchor(True)
+                            has_same = True
+
+                    if not has_same:
+                        for lead_u, L in leading_items:
+                            if len(S) <= len(L) and S.issubset(L):
+                                p.set_subset(True)
+                                leading_list = p.get_leading_proteins()
+                                if not any(lp.get_uniprot() == lead_u for lp in leading_list):
+                                    leading_list.append(protein_map[lead_u])
+            
 
     @staticmethod
     def save_peptide_matches(f, proteins: list[Protein]) -> None:
-        headers = ['Sequence', 'Uniprot', 'Isoform', 'Start', 'End']
+        headers = ['Sequence (Search)', 'Uniprot', 'Isoform', 'Start', 'End', 'MatchedLEqIPositions', 'Sequence (Hit)']
         f.write('\t'.join(headers) + '\n')
 
         for protein in proteins:
@@ -469,7 +546,9 @@ class Protein:
                     protein.get_uniprot(),
                     'FALSE',
                     match.get_start(),
-                    match.get_end()
+                    match.get_end(),
+                    match.get_matched_l_eq_i_positions(),
+                    match.get_hit_sequence()
                 ]
                 f.write('\t'.join(row) + '\n')
 
@@ -480,7 +559,9 @@ class Protein:
                         isoform.get_uniprot(),
                         'TRUE',
                         match.get_start(),
-                        match.get_end()
+                        match.get_end(),
+                        match.get_matched_l_eq_i_positions(),
+                        match.get_hit_sequence()                        
                     ]
                     f.write('\t'.join(row) + '\n')
 

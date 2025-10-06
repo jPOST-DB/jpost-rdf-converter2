@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import ClassVar
 
@@ -64,9 +65,7 @@ class Peptide:
         return self.sequence
     
     def set_dummy(self, sequence: str) -> None:
-        dummy = sequence.replace('I', 'J')
-        dummy = dummy.replace('L', 'J')
-        self.dummy = dummy
+        self.dummy = Peptide.create_dummy(sequence)
 
     def get_dummy(self) -> str | None:
         return self.dummy
@@ -144,7 +143,11 @@ class Peptide:
         f.write(f'    dct:identifier "{self.get_id()}" .\n\n')
 
 
-
+    @staticmethod
+    def create_dummy(sequence: str) -> str:
+        dummy = sequence.replace('I', 'J')
+        dummy = dummy.replace('L', 'J')
+        return dummy
     
     @staticmethod
     def read_peptides(dataset: DataSet, tsv_path: str) -> list[Peptide]:
@@ -310,50 +313,53 @@ class Peptide:
 
         return peptides
     
+
     @staticmethod
     def check_peptides(proteins: list[Protein], peptides: list[Peptide]) -> None:
-        sequence_map = {}
-        dummy_map = {}
-        protein_map = {}
-        count_map = {}
+        seq_freq   = defaultdict(int)
+        dummy_freq = defaultdict(int)
+
+        group_by_dm_list = defaultdict(list)
+        seen_ids_by_dm   = defaultdict(set)
 
         for protein in proteins:
-            protein_map[protein.get_uniprot()] = protein
-            peptide_list = protein.search_peptides()
-            sequence_set = set()
-            dummy_set = set()
-            for peptide in peptide_list:
-                sequence_set.add(peptide.get_sequence())
-                dummy_set.add(peptide.get_dummy())
-                count_key = f'{peptide.get_dummy()}_{peptide.get_mod()}'
-                if count_key not in count_map:
-                    count_map[count_key] = [peptide]
-                else:
-                    count_map[count_key].append(peptide)
+            plist = protein.search_peptides()
 
-            sequence_map[protein.get_uniprot()] = sequence_set
-            dummy_map[protein.get_uniprot()] = dummy_set
+            seq_set   = {p.get_sequence() for p in plist}
+            dummy_set = {p.get_dummy()    for p in plist}
 
-        for peptide in peptides:
-            seq_count = 0
-            dummy_count = 0
-            for protein in proteins:
-                seq_set = sequence_map.get(protein.get_uniprot(), set())
-                dummy_set = dummy_map.get(protein.get_uniprot(), set())
-                if peptide.get_sequence() in seq_set:
-                    seq_count += 1
-                if peptide.get_dummy() in dummy_set:
-                    dummy_count += 1
+            for seq in seq_set:
+                seq_freq[seq] += 1
+            for dm in dummy_set:
+                dummy_freq[dm] += 1
 
-            count_key = f'{peptide.get_dummy()}_{peptide.get_mod()}'
-            if count_key in count_map:
-                count_list = count_map.get(count_key)
-                for p in count_list:
-                    if p != peptide:
-                        peptide.get_distinguishable_peptides().append(p)
+            for p in plist:
+                key = (p.get_dummy(), p.get_mod())
+                pid = id(p)
+                if pid not in seen_ids_by_dm[key]:
+                    seen_ids_by_dm[key].add(pid)
+                    group_by_dm_list[key].append(p)
 
-            peptide.set_unique(seq_count == 1)
-            peptide.set_unique_at_mslevel(dummy_count == 1)
+        for pep in peptides:
+            seq = pep.get_sequence()
+            dm  = pep.get_dummy()
+            mod = pep.get_mod()
+
+            pep.set_unique(seq_freq.get(seq, 0) == 1)
+            pep.set_unique_at_mslevel(dummy_freq.get(dm, 0) == 1)
+
+            peers = group_by_dm_list.get((dm, mod), [])
+            if peers:
+                dst = pep.get_distinguishable_peptides()
+                existing = {id(x) for x in dst}
+                self_id = id(pep)
+                for q in peers:
+                    qid = id(q)
+                    if qid != self_id and qid not in existing:
+                        dst.append(q)
+                        existing.add(qid)
+
+
 
     @staticmethod
     def save_indistinguishable_peptides(f, peptides: list[Peptide]) -> None:
