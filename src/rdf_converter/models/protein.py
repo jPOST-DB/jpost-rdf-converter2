@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from turtle import up
 from typing import Optional, List, Dict, Tuple
 import logging
 from typing import TYPE_CHECKING

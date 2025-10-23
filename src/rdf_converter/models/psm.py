@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from tokenize import String
-from turtle import right
 from typing import ClassVar
 
 from typing import TYPE_CHECKING
