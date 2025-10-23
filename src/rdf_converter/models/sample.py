@@ -126,7 +126,7 @@ class Sample:
             prefix = 'obo'
             if cell_line_id.startswith('JPO'):
                 prefix = 'jpost'
-            f.write(f'    jpost:cellLine {prefix}:{cell_line_id.replace(':', '_')} ;\n')
+            f.write(f'    jpost:cellLine {prefix}:{cell_line_id.replace(":", "_")} ;\n')
         elif is_not_empty(cell_line):
             f.write('    jpost:cellLine [\n')
             f.write(f'        rdfs:label "{cell_line}" ;\n')
