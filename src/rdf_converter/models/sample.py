@@ -139,7 +139,7 @@ class Sample:
             prefix = 'obo'
             if disease_class.startswith('JPO'):
                 prefix = 'jpost'
-            f.write(f'    jpost:diseaseClass {prefix}:{disease_class.replace(':', '_')} ;\n')
+            f.write(f'    jpost:diseaseClass {prefix}:{disease_class.replace(":", "_")} ;\n')
 
         if is_not_empty(disease_id):
             prefix = 'obo'
