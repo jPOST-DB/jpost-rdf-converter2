@@ -4,6 +4,7 @@ jpost_rdf_converter2.egg-info
 **/__pycache__
 data
 output
+out
 tmp
 optimizer_cache
 src/**/.*

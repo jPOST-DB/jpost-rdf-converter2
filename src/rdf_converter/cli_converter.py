@@ -3,6 +3,7 @@ from pathlib import Path
 import typer
 from dotenv import load_dotenv
 from .dataset_converter import DatasetConverter
+from .project_converter import ProjectConverter
 
 app = typer.Typer(add_completion=False, help='jPOST RDF Converter (Python port)')
 
@@ -24,6 +25,15 @@ def dataset(
     conv = DatasetConverter(rev, branch, tsv, fasta, meta_data, pep, intermediate_dir, out, java_bin, peptidematch_jar)
     conv.convert()
 
+@app.command()
+def project(
+    meta_data: str = typer.Option(..., '--meta-data', help='Metadata'),
+    rev: str = typer.Option(..., '--rev', help='rev JPST ID'),
+    out: str = typer.Option(..., '--out', help='Output Turtle (TTL) path'),
+):
+    load_dotenv()
+    conv = ProjectConverter(rev, meta_data, out)
+    conv.convert()
 
 
 if __name__ == '__main__':

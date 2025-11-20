@@ -37,7 +37,7 @@ rdf-convert dataset \
   --pepresult out/peptidematch.tsv
 
 # Example (project)
-jpconvert project --xml example/project.xml --out out/project.ttl
+jpconvert project --meta-data example/project.xml --out out/project.ttl --rev JPST000000
 ```
 
 ## Intermediate artifacts
