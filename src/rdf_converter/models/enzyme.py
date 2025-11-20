@@ -12,9 +12,7 @@ if TYPE_CHECKING:
     from .dataset import DataSet
 
 from .modification import Modification
-from .unimod.unimod_manager import UnimodManager, UnimodElement, TitleAndSite
 from ..utils.string_tool import is_not_empty
-
 
 
 logger = logging.getLogger(__name__)
@@ -89,43 +87,6 @@ class Enzyme:
         f.write('    a jpost:EnzymeAndModifications .\n\n')
 
 
-
-    @staticmethod
-    def read_modification(node: ET.Element) -> Modification | None:
-        id = node.get('id')
-        name = node.text
-
-        unimod_manager = UnimodManager.get_instance()
-
-        modification = None
-
-        if id.startswith('UNIMOD:'):
-            id = id.replace('UNIMOD:', '')            
-            title_and_site = unimod_manager.get_title_and_site(name)
-            is_protein = title_and_site.get_site().lower().find('protein') >= 0
-            element = unimod_manager.search_element(id, title_and_site.get_site(), is_protein)
-            if element is not None:
-                modification = Modification()
-                site = element.get_site()
-                if is_protein and site.lower().find('term') >= 0 and site.lower().find('protein') < 0:
-                    site = f'Protein {site}'
-
-                modification.set_title(f'{element.get_title()} ({site})')
-                modification.set_site(site)
-                modification.set_class(element.get_class())
-                modification.set_unimod(element.get_id())
-        else:
-            element = unimod_manager.search_element_by_name(name)
-            if element is not None:
-                modification = Modification()
-                modification.set_title(name)
-                modification.set_site(element.get_site())
-                modification.set_class(element.get_class())
-                modification.set_unimod(element.get_id())
-
-        return modification
-
-
     @staticmethod
     def read_enzyme(dataset: DataSet, meta_path: str) -> Enzyme:
         tree = ET.parse(meta_path)
@@ -146,16 +107,12 @@ class Enzyme:
                 if is_not_empty(enzyme_id):
                     enzyme.get_enzymes().append(enzyme_id.strip())
             
-            fixedMods = tag.findall('fixedModification')
+            fixedMods, variableMods = Modification.get_modifications_from_jpost_repo(dataset.get_project().get_id())
+            
             for mod in fixedMods:
-                modification = Enzyme.read_modification(mod)
-                if modification is not None:
-                    enzyme.fixed_mods.append(modification)
+                enzyme.fixed_mods.append(mod)
 
-            variableMods = tag.findall('variableModification')
             for mod in variableMods:
-                modification = Enzyme.read_modification(mod)
-                if modification is not None:
-                    enzyme.variable_mods.append(modification)
+                enzyme.variable_mods.append(mod)
 
-        return enzyme    
+        return enzyme

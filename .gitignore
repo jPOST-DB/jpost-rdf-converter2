@@ -5,6 +5,7 @@ jpost_rdf_converter2.egg-info
 data
 output
 tmp
+optimizer_cache
 src/**/.*
 .DS_Store
 .vscode

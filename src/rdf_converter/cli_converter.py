@@ -1,7 +1,6 @@
 import os
 from pathlib import Path
 import typer
-from rich import print
 from dotenv import load_dotenv
 from .dataset_converter import DatasetConverter
 

@@ -317,7 +317,7 @@ class Psm:
                     else:
                         if mod_element not in not_found:
                             not_found.append(mod_element)                            
-                        f.write(f'        rdfs:label "{mod_element}"\n')
+                        f.write(f'        rdfs:label "{mod_element} " ;\n')
 
                     if site is not None:
                         f.write(f'        jpost:modificationSite "{site}" ;\n')

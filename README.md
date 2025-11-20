@@ -15,6 +15,9 @@ A pragmatic Python3 port of the **jpost-rdf-converter** with light refactoring a
 # (Optionally) create a venv
 python -m venv .venv && source .venv/bin/activate  # Windows: .venv\Scripts\activate
 
+# Upgrade pip
+python -m pip install --upgrade pip
+
 # Install
 pip install -r requirements.txt
 pip install -e .
@@ -28,6 +31,7 @@ rdf-convert dataset \
   --fasta example/proteins.fasta \
   --meta-data example/meta.xml \
   --out out/example.ttl \
+  --intermediate-dir out \
   --rev JPST000000 \
   --branch 1 \
   --pepresult out/peptidematch.tsv

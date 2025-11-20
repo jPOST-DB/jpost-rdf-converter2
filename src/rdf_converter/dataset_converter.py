@@ -3,6 +3,7 @@ from pathlib import Path
 import pathlib
 import psutil
 import datetime
+import logging
 from .utils.logging import get_logger
 from .models.project import Project
 from .models.dataset import DataSet
@@ -94,6 +95,7 @@ class DatasetConverter:
         logger.info(f'PSMs: {len(psms)}')
         logger.info(f'Spectra: {len(spectra)}')
 
+        peps = None
         if self.pep_path:
             peps = Pep.read_pep(dataset, str(self.pep_path))
             logger.info(f'PEPs: {len(peps)}')
@@ -169,8 +171,9 @@ class DatasetConverter:
 
             self.write_statistics(f, dataset, peptides, proteins, optimized_proteins, psms, spectra, peps)
 
-            for pep in peps:
-                pep.to_ttl(f)
+            if peps is not None:
+                for pep in peps:
+                    pep.to_ttl(f)
 
         match_result_path = self.result_dir / 'peptidematch_result.txt'
         with open(match_result_path, 'w', encoding='utf-8') as f:

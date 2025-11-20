@@ -11,17 +11,6 @@ try:
 except Exception:
     _HAVE_DOTENV = False
 
-try:
-    from rich import print as rprint  # optional
-    def _print(msg):
-        try:
-            rprint(msg)
-        except Exception:
-            sys.stdout.write(str(msg) + "\n")
-except Exception:
-    def _print(msg):
-        sys.stdout.write(str(msg) + "\n")
-
 # Typer は 3.6+ 必須。無ければ argparse にフォールバック。
 try:
     import typer  # optional

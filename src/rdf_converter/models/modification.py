@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from ..utils.string_tool import is_not_empty
-
+import xml.etree.ElementTree as ET
+import requests 
+import re
 
 @dataclass
 class Modification:
@@ -42,44 +44,97 @@ class Modification:
         self.clazz = clazz
 
     def to_ttl(self, f) -> None:
-        class_id = 'JPO_034'
-
-        if self.clazz == 'Post-translational':
-            class_id = "JPO_021"
-        elif self.clazz == 'Co-translational':
-            class_id = "JPO_022"
-        elif self.clazz == 'Pre-translational':
-            class_id = "JPO_024"
-        elif self.clazz.startswith("Chemical derivative"):
-            class_id = "JPO_025"
-        elif self.clazz == "Artefact":
-            class_id = "JPO_026"
-        elif self.clazz == "N-linked glycosylation":
-            class_id = "JPO_027"
-        elif self.clazz == "O-linked glycosylation":
-            class_id = "JPO_028"
-        elif self.clazz == "Other glycosylation":
-            class_id = "JPO_029"
-        elif self.clazz == "Synth. pep. protect. gp.":
-            class_id = "JPO_030"
-        elif self.clazz == "Isotopic label":
-            class_id = "JPO_031"
-        elif self.clazz == "Non-standard residue":
-            class_id = "JPO_032"
-        elif self.clazz == "Multiple":
-            class_id = "JPO_033"
-        elif self.clazz == "AA substitution":
-            class_id = "JPO_035"
-        elif self.clazz == "Cross-link":
-            class_id = "JPO_036"
-        elif self.clazz == "CID cleavable cross-link":
-            class_id = "JPO_037"
-        elif self.clazz == "Photo cleavable cross-link":
-            class_id = "JPO_038"
-        elif self.clazz == "Other cleavable cross-link":
-            class_id = "JPO_039"
-
-        f.write(f'        a unimod:UNIMOD_{self.unimod} ;\n')
         if is_not_empty(self.site):
-            f.write(f'        jpost:modificationSite "{self.site}" ;\n')
-        f.write(f'        jpost:modificationClass jpost:{class_id}\n')
+            f.write(f'        jpost:modificationSite "{self.site}" ;\n')        
+        f.write(f'        a unimod:UNIMOD_{self.unimod} \n')
+
+
+    @staticmethod
+    def get_modifications_from_jpost_repo(project_id: str):
+        xml_url = f'https://repository.jpostdb.org/xml/{project_id}.0.xml'
+        response = requests.get(xml_url)
+        fixed_mods = []
+        variable_mods = []
+
+        pattern_fixed = re.compile(r"^fixed_mod\[(\d+)\]")
+        pattern_variable = re.compile(r"^variable_mod\[(\d+)\]")
+        pattern_fixed_site = re.compile(r"^fixed_mod\[(\d+)\]-site")
+        pattern_variable_site = re.compile(r"^variable_mod\[(\d+)\]-site")
+
+        if response.status_code == 200:
+            root = ET.fromstring(response.content)
+
+            file_tags = root.findall('FileList/File')
+            result_file = None
+            for file_tag in file_tags:
+                type = file_tag.find('Type').text
+                if type == 'result':
+                    result_file = file_tag.find('Name').text
+
+            if result_file is not None:
+                result_url = f'https://storage.jpostdb.org/{project_id}/{result_file}'
+                response = requests.get(result_url)
+                fixed_mod_map = {}
+                variable_mod_map = {}
+                for line in response.iter_lines():
+                    tokens = line.decode('utf-8').split('\t')
+                    if len(tokens) >= 3:
+                        if tokens[0] == 'MTD':
+                            match_fixed = pattern_fixed.match(tokens[1])
+                            match_variable = pattern_variable.match(tokens[1])
+                            match_fixed_site = pattern_fixed_site.match(tokens[1])
+                            match_variable_site = pattern_variable_site.match(tokens[1])
+
+                            if match_fixed_site:
+                                index = match_fixed_site.group(0)
+                                site = tokens[2].strip()
+                                if index in fixed_mod_map:
+                                    fixed_mod_map[index]['site'] = site
+                            elif match_variable_site:
+                                index = match_variable_site.group(0)
+                                site = tokens[2].strip()
+                                if index in variable_mod_map:
+                                    variable_mod_map[index]['site'] = site
+                            elif match_fixed:
+                                if not tokens[1].endswith('-position'):
+                                    index = match_fixed.group(0)
+                                    values = tokens[2].replace('[', '').replace(']', '').split(',')
+                                    fixed_mod_map[index] = {'unimod': values[1].strip().replace('UNIMOD:', ''),
+                                                            'name': values[2].strip()}
+                            elif match_variable:
+                                if not tokens[1].endswith('-position'):
+                                    index = match_variable.group(0)
+                                    values = tokens[2].replace('[', '').replace(']', '').split(',')
+                                    variable_mod_map[index] = {'unimod': values[1].strip().replace('UNIMOD:', ''),
+                                                            'name': values[2].strip()}
+                            
+
+                for mod_dic in fixed_mod_map.values():
+                    modification = Modification()
+                    modification.set_unimod(mod_dic['unimod'])
+                    title = mod_dic['name']
+                    if 'site' in mod_dic:
+                        title += f" ({mod_dic['site']})"
+                        modification.set_site(mod_dic['site'])
+                    modification.set_title(title)
+                    fixed_mods.append(modification)
+
+                for mod_dic in variable_mod_map.values():
+                    modification = Modification()
+                    modification.set_unimod(mod_dic['unimod'])
+                    title = mod_dic['name']
+                    if 'site' in mod_dic:
+                        title += f" ({mod_dic['site']})"
+                        modification.set_site(mod_dic['site'])
+                    modification.set_title(title)
+                    variable_mods.append(modification)
+
+        return fixed_mods, variable_mods
+                
+                        
+
+
+
+
+
+

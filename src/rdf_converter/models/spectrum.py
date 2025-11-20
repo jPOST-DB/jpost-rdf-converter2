@@ -23,7 +23,7 @@ class Spectrum:
     def __init__(self, rawdata: RawData, scan: str):
         self.rawdata = rawdata
         self.scan = scan
-        self.id = f'{rawdata.get_id().replace('RAW', 'SPC')}_{scan}'
+        self.id = f'{rawdata.get_id().replace("RAW", "SPC")}_{scan}'
 
     def get_rawdata(self) -> RawData:
         return self.rawdata
@@ -35,6 +35,6 @@ class Spectrum:
         return self.id
 
     def to_ttl(self, f) -> None:
-        f.write(f'bid:{self.id} a spc:Spectrum ;\n')
+        f.write(f'bid:{self.id} a jpost:Spectrum ;\n')
         f.write(f'    rdfs:label "{self.id}" ;\n')
         f.write(f'    jpost:inRawData bid:{self.rawdata.get_id()} .\n\n')
