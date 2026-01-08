@@ -8,6 +8,8 @@ from rdf_converter.models import dataset
 from .protein_optimizer import ProteinOptimizer
 import json
 
+import uvicorn
+
 app = typer.Typer(add_completion=False, help='jPOST Protein Optimizer (Python port)')
 
 
@@ -106,6 +108,14 @@ def peptides(
     else:
         for peptide in peptides:
             print(peptide)
+
+
+@app.command()
+def server(
+    port: int = typer.Option(8081, '--port', '-p', help='Port number')
+):
+    '''Start optimization API server'''
+    uvicorn.run('rdf_converter.optimizer_server:app', host='0.0.0.0', port=port)
 
 
 

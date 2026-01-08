@@ -4,6 +4,9 @@ import typer
 from rich import print
 from dotenv import load_dotenv
 
+from .optimizer_server import app as optimizer_app
+import uvicorn
+
 from rdf_converter.models import dataset
 from .protein_optimizer import ProteinOptimizer
 import json
@@ -105,6 +108,14 @@ def peptides(
     else:
         for peptide in peptides:
             print(peptide)
+
+
+@app.command()
+def server(
+    port: int = typer.Option(8081, '--port', '-p', help='Port number')
+):
+    '''Start optimization API server'''
+    uvicorn.run('rdf_converter.optimizer_server:app', host='0.0.0.0', port=port)
 
 
 

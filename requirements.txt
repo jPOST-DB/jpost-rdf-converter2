@@ -6,3 +6,5 @@ psutil
 pulp
 requests
 tqdm
+fastapi
+uvicorn
