@@ -42,6 +42,15 @@ rdf-convert project --meta-data example/project.xml --out out/project.ttl --rev 
 # Example (最適化: list)
 protein-optimize list
 
+# Example (最適化: server)
+protein-optimize server --port 8081
+
+# Example (最適化: proteins)
+protein-optimize proteins --dataset JPST000000 --min-score 10 --output out/proteins.txt
+
+# Example (最適化: peptides)
+protein-optimize peptides --dataset JPST000000 --min-score 10 --output out/peptides.txt
+
 ```
 
 ## Intermediate artifacts
