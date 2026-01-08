@@ -48,7 +48,6 @@ def proteins(
     output: Path = typer.Option(None, '--output', '-o', help='Output file'),
     accession: bool = typer.Option(False, '--accession', help='Show only accession (remove isoform)')
 ):
-    '''Optimize proteins and show proteins'''
     ids = dataset.split(',')
     optimizer = create_optimizer()
     optimized_proteins = optimizer.optimize_proteins(ids, min_score, update_cache)
@@ -106,8 +105,6 @@ def peptides(
     else:
         for peptide in peptides:
             print(peptide)
-
-
 
 
 

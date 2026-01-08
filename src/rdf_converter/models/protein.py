@@ -111,7 +111,7 @@ class Protein:
     leading_protein: list[Protein] = field(default_factory=list)
     isoforms: list[Isoform] = field(default_factory=list)
 
-    def __init__(self, dataset: DataSet, uniprot: str, title: str):
+    def __init__(self, dataset: DataSet, uniprot: str, title: str = None):
         self.dataset = dataset
         self.id = f'PRT{dataset.get_number()}_{uniprot}'
         self.uniprot = uniprot
@@ -159,8 +159,8 @@ class Protein:
             peptide: Peptide, 
             start: str, 
             end: str, 
-            hit_sequence: str, 
-            matched_l_eq_i_positions: str
+            hit_sequence: str = None, 
+            matched_l_eq_i_positions: str = None
     ) -> None:
         flag = True
         for match in self.peptide_matches:

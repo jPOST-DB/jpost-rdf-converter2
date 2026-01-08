@@ -25,7 +25,7 @@ pip install -e .
 # Show help
 rdf-convert --help
 
-# Example (dataset) — flags are compatible conceptually, not 1:1 yet
+# Example (RDF化: dataset)
 rdf-convert dataset \
   --tsv example/results.tsv \
   --fasta example/proteins.fasta \
@@ -36,8 +36,12 @@ rdf-convert dataset \
   --branch 1 \
   --pepresult out/peptidematch.tsv
 
-# Example (project)
-jpconvert project --meta-data example/project.xml --out out/project.ttl --rev JPST000000
+# Example (RDF化: project)
+rdf-convert project --meta-data example/project.xml --out out/project.ttl --rev JPST000000
+
+# Example (最適化: list)
+protein-optimize list
+
 ```
 
 ## Intermediate artifacts

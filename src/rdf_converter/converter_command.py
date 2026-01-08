@@ -1,34 +1,27 @@
-# jpost_rdf_converter_cli.py
 from __future__ import print_function
 
 import os
 import sys
 
-# ---- 依存パッケージが無い環境でも動くように緩やかに import ----
 try:
     from dotenv import load_dotenv  # optional
     _HAVE_DOTENV = True
 except Exception:
     _HAVE_DOTENV = False
 
-# Typer は 3.6+ 必須。無ければ argparse にフォールバック。
 try:
     import typer  # optional
     _HAVE_TYPER = True
 except Exception:
     _HAVE_TYPER = False
 
-# 相対 import とスクリプト実行の両対応
 try:
-    # パッケージ配下（python -m package.module）のとき
     from .dataset_converter import DatasetConverter  # type: ignore
 except Exception:
-    # 単独スクリプト実行（python jpost_rdf_converter_cli.py）のとき
     from dataset_converter import DatasetConverter  # type: ignore
 
 
 def _load_env():
-    """dotenv があれば読み込む（無くても無視）。"""
     if _HAVE_DOTENV:
         try:
             load_dotenv()
@@ -37,10 +30,6 @@ def _load_env():
 
 
 def run_dataset(tsv, fasta, meta_data, out_path, intermediate_dir, rev, pep, branch):
-    """
-    共通処理本体：CLI 実装（typer/argparse）から呼び出す。
-    できるだけ古い Python でも動くよう f-string は未使用。
-    """
     _load_env()
 
     peptidematch_jar = os.getenv('PEPTIDEMATCH_JAR')
@@ -75,7 +64,6 @@ def run_dataset(tsv, fasta, meta_data, out_path, intermediate_dir, rev, pep, bra
     _print("[jPOST RDF Converter] done.")
 
 
-# ---------------- Typer（あれば使用） ----------------
 if _HAVE_TYPER:
     app = typer.Typer(add_completion=False, help='jPOST RDF Converter (Python port)')
 
@@ -94,8 +82,6 @@ if _HAVE_TYPER:
 
     def main():
         app()
-
-# ---------------- argparse フォールバック ----------------
 else:
     import argparse
 
@@ -130,7 +116,6 @@ else:
                 args.branch,
             )
         else:
-            # サブコマンドが無ければヘルプ表示
             parser.print_help()
 
 
