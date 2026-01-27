@@ -5,6 +5,8 @@ from ..utils.string_tool import is_not_empty
 import xml.etree.ElementTree as ET
 import requests 
 import re
+import os
+from dotenv import load_dotenv
 
 @dataclass
 class Modification:
@@ -51,7 +53,10 @@ class Modification:
 
     @staticmethod
     def get_modifications_from_jpost_repo(project_id: str):
-        xml_url = f'https://repository.jpostdb.org/xml/{project_id}.0.xml'
+        load_dotenv()
+        repository_url = os.getenv('REPOSITORY_URL', 'https://repository.jpostdb.org/xml/')
+
+        xml_url = f'{repository_url}{project_id}.0.xml'
         response = requests.get(xml_url)
         fixed_mods = []
         variable_mods = []

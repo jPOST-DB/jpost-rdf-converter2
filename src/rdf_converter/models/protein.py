@@ -174,6 +174,17 @@ class Protein:
             match.set_end(end)
             match.set_hit_sequence(hit_sequence)
             match.set_matched_l_eq_i_positions(matched_l_eq_i_positions)
+            if matched_l_eq_i_positions != '':
+                poses = matched_l_eq_i_positions.split(',')
+                hit_sequence = peptide.get_sequence()
+                for pos in poses:
+                    index = int(pos) - int(start)
+                    if hit_sequence[index] == 'L':
+                        hit_sequence = hit_sequence[:index] + 'I' + hit_sequence[index + 1:]
+                    elif hit_sequence[index] == 'I':
+                        hit_sequence = hit_sequence[:index] + 'L' + hit_sequence[index + 1:]
+                match.set_hit_sequence(hit_sequence)
+            
             self.peptide_matches.append(match)
 
     def is_in_optimization_list(self) -> bool:
@@ -363,8 +374,6 @@ class Protein:
     
         return output_path.resolve()
 
-
-
     
     @staticmethod
     def get_protein_list(peptides: list[Peptide], work_dir: str, fasta_path: str) -> list[Protein]:
@@ -438,6 +447,25 @@ class Protein:
             counter += 1
             id = f'PEP{peptide.get_dataset().get_number()}_{counter}'
             peptide.set_id(id)
+
+
+        for peptide in last_peptides:
+            peptide.get_distinguishable_peptides().clear()
+
+        for protein in proteins:
+            for match in protein.get_peptide_matches():
+                peptide = match.get_peptide()
+                sequence = peptide.get_sequence()
+                hit_sequence = match.get_hit_sequence()
+                if sequence != hit_sequence:
+                    distinguishable_peptide = None
+                    for tmp in peptide.get_distinguishable_peptides():
+                        if tmp.get_sequence() == hit_sequence:
+                            distinguishable_peptide = tmp
+                    if distinguishable_peptide is None:
+                        distinguishable_peptide = Peptide(protein.get_dataset(), hit_sequence)
+                        peptide.get_distinguishable_peptides().append(distinguishable_peptide)
+                        last_peptides.append(distinguishable_peptide)
 
         return {
             'peptides': last_peptides,
@@ -681,3 +709,5 @@ class Protein:
         ]
 
         return selected_proteins
+
+  

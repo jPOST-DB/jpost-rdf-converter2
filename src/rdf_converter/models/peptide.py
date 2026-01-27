@@ -340,49 +340,7 @@ class Peptide:
                     seen_ids_by_dm[key].add(pid)
                     group_by_dm_list[key].append(p)
 
-        for pep in peptides:
-            seq = pep.get_sequence()
-            dm  = pep.get_dummy()
-            mod = pep.get_mod()
 
-            pep.set_unique(seq_freq.get(seq, 0) == 1)
-            pep.set_unique_at_mslevel(dummy_freq.get(dm, 0) == 1)
-
-            peers = group_by_dm_list.get((dm, mod), [])
-            if peers:
-                dst = pep.get_distinguishable_peptides()
-                existing = {id(x) for x in dst}
-                self_id = id(pep)
-                for q in peers:
-                    qid = id(q)
-                    if qid != self_id and qid not in existing:
-                        dst.append(q)
-                        existing.add(qid)
-
-
-
-    @staticmethod
-    def save_indistinguishable_peptides(f, peptides: list[Peptide]) -> None:
-        lines = []
-        max_col = 0
-        sequence_set = set()
-
-        for peptide in peptides:
-            sequence = peptide.get_dummy()
-            distinguishable = peptide.get_distinguishable_peptides()
-            if len(distinguishable) > 0:
-                if sequence not in sequence_set:
-                    row = [peptide.get_sequence()]
-                    for p in distinguishable:
-                        row.append(p.get_sequence())
-                    max_col = len(row) if len(row) > max_col else max_col
-                    lines.append(row)
-
-        headers = ['Sequence'] * max_col
-        f.write('\t'.join(headers) + '\n')
-
-        for row in lines:
-            f.write('\t'.join(row) + '\n')
 
     @staticmethod
     def save_peptide_proteins(f, proteins: list[Protein]) -> None:
@@ -410,3 +368,13 @@ class Peptide:
         lines.sort(key=lambda x: (x[0], x[1]))
         for row in lines:
             f.write('\t'.join([str(col) for col in row]) + '\n')
+
+
+    @staticmethod    
+    def save_indistinguishable_peptides(f, peptides: list[Peptide]) -> None:
+        for peptide in peptides:
+            if len(peptide.get_distinguishable_peptides()) > 0:
+                row = [peptide.get_sequence()]
+                for dist_pep in peptide.get_distinguishable_peptides():
+                    row.append(dist_pep.get_sequence())
+                f.write('\t'.join(row) + '\n')

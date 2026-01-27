@@ -46,10 +46,10 @@ protein-optimize list
 protein-optimize server --port 8081
 
 # Example (最適化: proteins)
-protein-optimize proteins --dataset JPST000000 --min-score 10 --output out/proteins.txt
+protein-optimize proteins --dataset DS0000_1 --min-score 10 --output out/proteins.txt
 
 # Example (最適化: peptides)
-protein-optimize peptides --dataset JPST000000 --min-score 10 --output out/peptides.txt
+protein-optimize peptides --dataset DS0000_1 --min-score 10 --output out/peptides.txt
 
 ```
 
