@@ -29,15 +29,15 @@ rdf-convert --help
 rdf-convert dataset \
   --tsv example/results.tsv \
   --fasta example/proteins.fasta \
-  --meta-data example/meta.xml \
+  --meta_data example/meta.xml \
   --out out/example.ttl \
-  --intermediate-dir out \
+  --intermediate_dir out \
   --rev JPST000000 \
   --branch 1 \
-  --pepresult out/peptidematch.tsv
+  --pep pep.txt
 
 # Example (RDF化: project)
-rdf-convert project --meta-data example/project.xml --out out/project.ttl --rev JPST000000
+rdf-convert project --meta_data example/project.xml --out out/project.ttl --rev JPST000000
 
 # Example (最適化: list)
 protein-optimize list
@@ -46,10 +46,10 @@ protein-optimize list
 protein-optimize server --port 8081
 
 # Example (最適化: proteins)
-protein-optimize proteins --dataset DS0000_1 --min-score 10 --output out/proteins.txt
+protein-optimize proteins --dataset DS0000_1 --min-score --output out/proteins.txt
 
 # Example (最適化: peptides)
-protein-optimize peptides --dataset DS0000_1 --min-score 10 --output out/peptides.txt
+protein-optimize peptides --dataset DS0000_1 --min-score --output out/peptides.txt
 
 ```
 

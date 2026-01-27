@@ -174,7 +174,7 @@ class Protein:
             match.set_end(end)
             match.set_hit_sequence(hit_sequence)
             match.set_matched_l_eq_i_positions(matched_l_eq_i_positions)
-            if matched_l_eq_i_positions != '':
+            if matched_l_eq_i_positions != '' and matched_l_eq_i_positions is not None:
                 poses = matched_l_eq_i_positions.split(',')
                 hit_sequence = peptide.get_sequence()
                 for pos in poses:

@@ -30,7 +30,7 @@ def list_datasets():
 @app.get('/proteins')
 def get_proteins(
     dataset: str,
-    min_score: float = 0.0,
+    min_score: bool = False,
     update_cache: bool = False,
     accession: bool = False
 ):
@@ -53,7 +53,7 @@ def get_proteins(
 @app.get('/peptides')
 def get_peptides(
     dataset: str,
-    min_score: float = 0.0,
+    min_score: bool = False,
     update_cache: bool = False,
     accession: bool = False
 ):

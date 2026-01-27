@@ -18,7 +18,7 @@ def create_optimizer():
     load_dotenv()
     api_url = os.getenv('SPARQLIST_URL', 'https://db-dev.jpostdb.org/sparqlist_pi/api')
     cache_dir = os.getenv('OPTIMIZER_CACHE', './optimizer_cache')
-    optimizer = ProteinOptimizer(api_url, cache_dir)
+    optimizer = ProteinOptimizer(cache_dir)
     return optimizer
 
 
@@ -46,7 +46,7 @@ def list(
 @app.command()
 def proteins(
     dataset: str = typer.Option(..., '--dataset', help='Dataset ID (comma seperated for multiple)'),
-    min_score: float = typer.Option(0.0, '--min-score', help='Minimum score'),
+    min_score: bool = typer.Option(False, '--min-score', help='Using minimum score'),
     update_cache: bool = typer.Option(False, '--update-cache', help='Update cache'),
     output: Path = typer.Option(None, '--output', '-o', help='Output file'),
     accession: bool = typer.Option(False, '--accession', help='Show only accession (remove isoform)')
@@ -76,7 +76,7 @@ def proteins(
 @app.command()
 def peptides(
     dataset: str = typer.Option(..., '--dataset', help='Dataset ID (comma seperated for multiple)'),
-    min_score: float = typer.Option(0.0, '--min-score', help='Minimum score'),
+    min_score: bool = typer.Option(False, '--min-score', help='Using minimum score'),
     update_cache: bool = typer.Option(False, '--update-cache', help='Update cache'),
     output: Path = typer.Option(None, '--output', '-o', help='Output file'),
     accession: bool = typer.Option(False, '--accession', help='Show only accession (remove isoform)')
