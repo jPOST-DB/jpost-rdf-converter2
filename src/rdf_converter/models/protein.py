@@ -288,15 +288,23 @@ class Protein:
         for leading in self.get_leading_proteins():
             f.write(f'    jpost:hasLeadingProtein :{leading.get_id()} ;\n')
 
+        psm_count = 0
+        seen_pep_ids = set()
+        for match in self.get_peptide_matches():
+            pep_id = id(match.get_peptide())
+            if pep_id not in seen_pep_ids:
+                seen_pep_ids.add(pep_id)
+                psm_count += len(match.get_peptide().get_psms())
+
         f.write(f'    sio:SIO_000216 [\n')
         f.write(f'        a obo:MS_1001097 ;\n')
-        f.write(f'        sio:SIO_000300 :{len(self.get_peptide_matches())} ;\n')
+        f.write(f'        sio:SIO_000300 {len(self.get_peptide_matches())} ;\n')
         f.write(f'    ] ;\n')
 
         f.write(f'    sio:SIO_000216 [\n')
         f.write(f'        a obo:MS_1002153 ;\n')
-        f.write(f'        sio:SIO_000300 :{len(self.get_peptide_matches())} ;\n')
-        f.write(f'    ] ;\n')        
+        f.write(f'        sio:SIO_000300 {psm_count} ;\n')
+        f.write(f'    ] ;\n')
 
         for match in self.get_peptide_matches():
             match.to_ttl(f)

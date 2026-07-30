@@ -5,7 +5,7 @@ from typing import Optional, List
 import xml.etree.ElementTree as ET
 import logging
 
-from ..utils.string_tool import is_not_empty
+from ..utils.string_tool import is_not_empty, escape_ttl
 
 from typing import TYPE_CHECKING
 
@@ -129,7 +129,7 @@ class Sample:
             f.write(f'    jpost:cellLine {prefix}:{cell_line_id.replace(":", "_")} ;\n')
         elif is_not_empty(cell_line):
             f.write('    jpost:cellLine [\n')
-            f.write(f'        rdfs:label "{cell_line}" ;\n')
+            f.write(f'        rdfs:label "{escape_ttl(cell_line)}" ;\n')
             f.write('    ] ;\n')
 
         if is_not_empty(organ):
@@ -148,7 +148,7 @@ class Sample:
             f.write(f'    jpost:disease {prefix}:{disease_id.replace(":", "_")} ;\n')
         elif is_not_empty(disease):
             f.write('    jpost:disease [\n')
-            f.write(f'        rdfs:label "{disease}" ;\n')
+            f.write(f'        rdfs:label "{escape_ttl(disease)}" ;\n')
             f.write('    ] ;\n')
         f.write('    a jpost:Sample .\n\n')        
 

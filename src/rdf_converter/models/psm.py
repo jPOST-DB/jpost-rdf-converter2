@@ -256,8 +256,8 @@ class Psm:
                 except ValueError:
                     pass
 
-            start_index = token.find('(')
-            end_index = token.find(')')
+            start_index = token.rfind('(')
+            end_index = token.rfind(')')
             mod_sites = token[start_index + 1: end_index]
 
             if mod_sites.find('N-term') >= 0:
@@ -280,7 +280,7 @@ class Psm:
             mod = None
             
             if index >= 0:
-                position = details[index + 1]
+                position = details[index + 1:].strip()
                 index2 = details.find('@')
                 if index2 >= 0 and index2 < index:
                     site = details[index2 + 1: index]
@@ -288,8 +288,8 @@ class Psm:
 
             mod_list = []
             if mod is not None:
-                if mod.find('(STY)') >= 0:
-                    mod_list.append(mod.replace('(STY)', '(T)'))
+                if mod.find('(STY)') >= 0 and site in ('S', 'T', 'Y'):
+                    mod_list.append(mod.replace('(STY)', f'({site})'))
                 else:
                     mod_list.append(mod)
 

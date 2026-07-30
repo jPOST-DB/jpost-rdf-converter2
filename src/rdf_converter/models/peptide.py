@@ -250,21 +250,10 @@ class Peptide:
                 psms = []
                 for i in range(hits):
                     current_psms = []
-                    if mod.startswith('Label:'):
-                        psm1 = Psm(dataset)
-                        psm1.set_mod('')
-                        psm1.set_mod_detail('')
-                        current_psms.append(psm1)
-
-                        psm2 = Psm(dataset)
-                        psm2.set_mod(mod)
-                        psm2.set_mod_detail(mod_detail)
-                        current_psms.append(psm2)
-                    else:
-                        psm = Psm(dataset)
-                        psm.set_mod(mod)
-                        psm.set_mod_detail(mod_detail)
-                        current_psms.append(psm)
+                    psm = Psm(dataset)
+                    psm.set_mod(mod)
+                    psm.set_mod_detail(mod_detail)
+                    current_psms.append(psm)
 
                     for psm in current_psms:
                         psm.set_sequence(sequence)
@@ -339,6 +328,12 @@ class Peptide:
                 if pid not in seen_ids_by_dm[key]:
                     seen_ids_by_dm[key].add(pid)
                     group_by_dm_list[key].append(p)
+
+        for peptide in peptides:
+            seq = peptide.get_sequence()
+            dummy = peptide.get_dummy()
+            peptide.set_unique(seq_freq.get(seq, 0) <= 1)
+            peptide.set_unique_at_mslevel(dummy_freq.get(dummy, 0) <= 1)
 
 
 
