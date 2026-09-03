@@ -47,6 +47,10 @@ class RawDataList:
     def get_list(self) -> list[RawData]:
         return self.files
     
+    def clear(self):
+        self.files = []
+        self.counter = 0
+
     def add_file(self, file: str):
         self.counter += 1
         id = self.dataset.get_id().replace('DS', 'RAW') + f'_{self.counter}'
@@ -55,12 +59,18 @@ class RawDataList:
         self.files.append(rawdata)
 
 
-    def get_file_id(self, file: str) -> Optional[str]:  
+    def get_file_id(self, file: str) -> Optional[str]:
         id = None
         for rawdata in self.files:
             if rawdata.get_file() == file:
                 id = rawdata.get_id()
         return id
+
+    def get_rawdata(self, file: str) -> Optional[RawData]:
+        for rawdata in self.files:
+            if rawdata.get_file() == file:
+                return rawdata
+        return None
         
     def __str__(self):
         return f'RawDataList(dataset={self.dataset.get_id()}, files={len(self.files)})'

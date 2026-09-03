@@ -107,7 +107,7 @@ class ProteinOptimizer:
                             if uniprot in protein_map:
                                 protein = protein_map[uniprot]
                             else:
-                                protein = Protein(dataset, uniprot)
+                                protein = Protein(dataset, uniprot, uniprot)
                                 protein_map[uniprot] = protein
                                 proteins.append(protein)
 
@@ -156,7 +156,7 @@ class ProteinOptimizer:
                         if uniprot in protein_map:
                             protein = protein_map[uniprot]
                         else:
-                            protein = Protein(dataset, uniprot)
+                            protein = Protein(dataset, uniprot, uniprot)
                             protein_map[uniprot] = protein
                             optimized_proteins.append(protein)
 

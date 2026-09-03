@@ -30,14 +30,23 @@ rdf-convert dataset \
   --tsv example/results.tsv \
   --fasta example/proteins.fasta \
   --meta_data example/meta.xml \
-  --out out/example.ttl \
+  --output out/example.ttl \
   --intermediate_dir out \
-  --rev JPST000000 \
   --branch 1 \
   --pep pep.txt
 
-# Example (RDF化: project)
-rdf-convert project --meta_data example/project.xml --out out/project.ttl --rev JPST000000
+# Example (RDF化: dataset with explicit JPST ID)
+rdf-convert dataset \
+  --tsv example/results.tsv \
+  --fasta example/proteins.fasta \
+  --meta_data example/meta.xml \
+  --output out/example.ttl \
+  --intermediate_dir out \
+  --rev JPST000000 \
+  --branch 1
+
+# Example (RDF化: project — JPST ID is auto-detected from metadata)
+rdf-convert project --meta_data example/project.xml --output out/project.ttl
 
 # Example (最適化: list)
 protein-optimize list

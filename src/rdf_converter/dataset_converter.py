@@ -244,9 +244,16 @@ class DatasetConverter:
         f.write('        rdfs:label "Number of PSMs"\n')
         f.write('    ] ;\n')
 
+        spectrum_set = set()
+        for psm in psms:
+            spec_id = psm.get_scan()
+            file = psm.get_property("File")
+            if spec_id is not None and file is not None:
+                spectrum_set.add(file + " : " + spec_id)
+
         f.write('    sio:SIO_000216 [\n')
         f.write('        a jpost:NumOfSpectra ;\n')
-        f.write(f'        sio:SIO_000300 {len(spectra)} ;\n')
+        f.write(f'        sio:SIO_000300 {len(spectrum_set)} ;\n')
         f.write('        rdfs:label "Number of Spectra"\n')
         f.write('    ] ;\n')
 

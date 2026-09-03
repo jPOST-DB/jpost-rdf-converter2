@@ -29,8 +29,31 @@ def _load_env():
             pass
 
 
+def _resolve_rev(rev, meta_data):
+    if rev:
+        return rev
+    try:
+        import xml.etree.ElementTree as ET
+        tree = ET.parse(meta_data)
+        root = tree.getroot()
+        node = root.find('Project')
+        resolved = node.get('id') if node is not None else None
+        if resolved:
+            _print("Auto-detected JPST ID: {0}".format(resolved))
+            return resolved
+    except Exception:
+        pass
+    raise SystemExit('ERROR: Could not detect JPST ID from metadata. Please specify --rev explicitly.')
+
+
+def _print(msg):
+    print(msg)
+
+
 def run_dataset(tsv, fasta, meta_data, out_path, intermediate_dir, rev, pep, branch):
     _load_env()
+
+    rev = _resolve_rev(rev, meta_data)
 
     peptidematch_jar = os.getenv('PEPTIDEMATCH_JAR')
     java_bin = os.getenv('JAVA_BIN', 'java')
@@ -72,13 +95,13 @@ if _HAVE_TYPER:
         tsv: str = typer.Option(..., '--tsv', help='Result TSV file'),
         fasta: str = typer.Option(..., '--fasta', help='FASTA file'),
         meta_data: str = typer.Option(..., '--meta-data', help='Metadata'),
-        out: str = typer.Option(..., '--out', help='Output Turtle (TTL) path'),
+        output: str = typer.Option(..., '--output', '-o', help='Output Turtle (TTL) path'),
         intermediate_dir: str = typer.Option(..., '--intermediate-dir', help='Directory for intermediate files'),
-        rev: str = typer.Option(..., '--rev', help='rev JPST ID'),
+        rev: str = typer.Option(None, '--rev', help='rev JPST ID (auto-detected from metadata if omitted)'),
         pep: str = typer.Option(None, '--pep', help='PEP file (optional)'),
         branch: int = typer.Option(..., '--branch', help='Branch number'),
     ):
-        run_dataset(tsv, fasta, meta_data, out, intermediate_dir, rev, pep, branch)
+        run_dataset(tsv, fasta, meta_data, output, intermediate_dir, rev, pep, branch)
 
     def main():
         app()
@@ -96,9 +119,9 @@ else:
         p.add_argument("--tsv", required=True, help="Result TSV file")
         p.add_argument("--fasta", required=True, help="FASTA file")
         p.add_argument("--meta-data", required=True, help="Metadata")
-        p.add_argument("--out", required=True, help="Output Turtle (TTL) path")
+        p.add_argument("--output", "-o", required=True, help="Output Turtle (TTL) path")
         p.add_argument("--intermediate-dir", required=True, help="Directory for intermediate files")
-        p.add_argument("--rev", required=True, help="rev JPST ID")
+        p.add_argument("--rev", required=False, default=None, help="rev JPST ID (auto-detected from metadata if omitted)")
         p.add_argument("--pep", required=False, default=None, help="PEP file (optional)")
         p.add_argument("--branch", required=True, type=int, help="Branch number")
 
@@ -109,7 +132,7 @@ else:
                 args.tsv,
                 args.fasta,
                 args.meta_data,
-                args.out,
+                args.output,
                 args.intermediate_dir,
                 args.rev,
                 args.pep,

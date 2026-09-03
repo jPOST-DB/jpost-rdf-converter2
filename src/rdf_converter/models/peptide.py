@@ -120,6 +120,11 @@ class Peptide:
             f.write(f'    a jpost:SharedPeptide ;\n')
 
         f.write('    sio:SIO_000216 [\n')
+        f.write('        a jpost:NumOfPsms ;\n')
+        f.write(f'        sio:SIO_000300 {len(self.get_psms())}\n')
+        f.write('    ];\n')
+
+        f.write('    sio:SIO_000216 [\n')
         f.write('        a jpost:UniScore ;\n')
         f.write(f'        sio:SIO_000300 {self.get_score()} ;\n')
         f.write('    ];\n')
@@ -254,6 +259,12 @@ class Peptide:
                     psm.set_mod(mod)
                     psm.set_mod_detail(mod_detail)
                     current_psms.append(psm)
+
+                    if mod.startswith('Label:'):
+                        psm2 = Psm(dataset)
+                        psm2.set_mod('')
+                        psm2.set_mod_detail('')
+                        current_psms.append(psm2)
 
                     for psm in current_psms:
                         psm.set_sequence(sequence)

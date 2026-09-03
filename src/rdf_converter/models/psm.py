@@ -504,16 +504,17 @@ class Psm:
         spectra = []
         spectra_map = {}
         rawdata_list = peptides[0].get_dataset().get_rawdata_list()
+        rawdata_list.clear()
 
         for peptide in peptides:
             for psm in peptide.get_psms():
                 psms.append(psm)
                 file = psm.get_raw_file()
-                rawdata = None
-                for tmp in rawdata_list.get_list():
-                    if rawdata is None or tmp.get_file() == file:
-                        rawdata = tmp
-            
+                rawdata = rawdata_list.get_rawdata(file)
+                if rawdata is None:
+                    rawdata_list.add_file(file)
+                    rawdata = rawdata_list.get_rawdata(file)
+
                 spectrum_id = f'{rawdata.get_id().replace("RAW", "SPC")}_{psm.get_scan()}'
                 spectrum = None
                 if spectrum_id in spectra_map:
