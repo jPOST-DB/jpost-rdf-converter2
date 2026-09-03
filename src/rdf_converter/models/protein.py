@@ -297,13 +297,13 @@ class Protein:
                 psm_count += len(match.get_peptide().get_psms())
 
         f.write(f'    sio:SIO_000216 [\n')
-        f.write(f'        a obo:MS_1001097 ;\n')
-        f.write(f'        sio:SIO_000300 {len(self.get_peptide_matches())} ;\n')
+        f.write(f'        rdf:type obo:MS_1001097 ;\n')
+        f.write(f'        sio:SIO_000300 {len(self.get_peptide_matches())}\n')
         f.write(f'    ] ;\n')
 
         f.write(f'    sio:SIO_000216 [\n')
-        f.write(f'        a obo:MS_1002153 ;\n')
-        f.write(f'        sio:SIO_000300 {psm_count} ;\n')
+        f.write(f'        rdf:type obo:MS_1002153 ;\n')
+        f.write(f'        sio:SIO_000300 {psm_count}\n')
         f.write(f'    ] ;\n')
 
         for match in self.get_peptide_matches():
@@ -318,23 +318,32 @@ class Protein:
         return uniprot_id       
 
     @staticmethod
-    def create_db_index(fasta_path: str, work_dir: str) -> Path:
+    def _build_peptidematch_classpath() -> tuple[str, str]:
         load_dotenv()
         java_bin = os.getenv('JAVA_BIN', 'java')
-        peptide_match_jar = os.getenv('PEPTIDEMATCH_JAR', './lib/PeptideMatchCMD.jar')  
-        
+        jar_path = os.getenv('PEPTIDEMATCH_JAR', './lib/PeptideMatchCMD.jar')
+        lib_dir = Path(jar_path).parent.resolve()
+        sep = ';' if os.name == 'nt' else ':'
+        jars = [str(p) for p in lib_dir.glob('*.jar')]
+        classpath = sep.join(jars)
+        return java_bin, classpath
+
+    @staticmethod
+    def create_db_index(fasta_path: str, work_dir: str) -> Path:
+        java_bin, classpath = Protein._build_peptidematch_classpath()
+
         dir = Path(work_dir)
         db_index = dir / 'db_index'
 
-        args = ['-a', 'index', '-d', fasta_path, '-i', db_index.resolve()]
+        args = ['-a', 'index', '-d', str(Path(fasta_path).resolve()), '-i', str(db_index.resolve())]
 
-        cmd = [java_bin, '-jar', peptide_match_jar] + args
+        cmd = [java_bin, '-cp', classpath, 'org.proteininformationresource.PeptideMatch.PeptideMatchCMD'] + args
 
         logger.info(f'Creating PeptideMatch DB index: {cmd}')
 
         with open(dir / 'db_index.log', 'w') as log_file:
             subprocess.run(cmd, stdout=log_file, stderr=subprocess.STDOUT, check=True)
-    
+
         return db_index.resolve()
     
 
@@ -350,11 +359,8 @@ class Protein:
 
     @staticmethod
     def execute_peptide_match(peptides: list[Peptide], db_index: Path, work_dir: str) -> Path:
-        load_dotenv()
+        java_bin, classpath = Protein._build_peptidematch_classpath()
 
-        java_bin = os.getenv('JAVA_BIN', 'java')
-        peptide_match_jar = os.getenv('PEPTIDEMATCH_JAR', './lib/PeptideMatchCMD.jar')  
-        
         dir = Path(work_dir)
         output_path = dir / 'peptide_matches.txt'
 
@@ -373,13 +379,13 @@ class Protein:
             str(output_path)
         ]
 
-        cmd = [java_bin, '-jar', peptide_match_jar] + args
+        cmd = [java_bin, '-cp', classpath, 'org.proteininformationresource.PeptideMatch.PeptideMatchCMD'] + args
 
         logger.info(f'Executing PeptideMatch: {cmd}')
 
         with open(dir / 'peptide_match.log', 'w') as log_file:
             subprocess.run(cmd, stdout=log_file, stderr=subprocess.STDOUT, check=True)
-    
+
         return output_path.resolve()
 
     
@@ -436,13 +442,12 @@ class Protein:
                         hit_str = f'{dummy}_{uniprot_id}_{start}_{end}'
                         if hit_str not in hit_set:
                             hit_set.add(hit_str)
-                            protein = protein_map.get(uniprot_id)                            
-                            if protein is None:
-                                protein = Protein(peptide.get_dataset(), uniprot_id, uniprot)
-                                protein_map[uniprot_id] = protein
-                            proteins.append(protein)
+                            if uniprot_id not in protein_map:
+                                protein_map[uniprot_id] = Protein(peptide.get_dataset(), uniprot_id, uniprot)
+                                proteins.append(protein_map[uniprot_id])
 
-                        if dummy in peptide_map:
+                        protein = protein_map.get(uniprot_id)
+                        if protein is not None and dummy in peptide_map:
                             for peptide in peptide_map[dummy]:
                                 protein.add_match(peptide, start, end, hit_sequence, matched_l_eq_i_positions)
                                 if peptide.get_sequence() in sequence_set:
@@ -460,20 +465,17 @@ class Protein:
         for peptide in last_peptides:
             peptide.get_distinguishable_peptides().clear()
 
-        for protein in proteins:
-            for match in protein.get_peptide_matches():
-                peptide = match.get_peptide()
-                sequence = peptide.get_sequence()
-                hit_sequence = match.get_hit_sequence()
-                if sequence != hit_sequence:
-                    distinguishable_peptide = None
-                    for tmp in peptide.get_distinguishable_peptides():
-                        if tmp.get_sequence() == hit_sequence:
-                            distinguishable_peptide = tmp
-                    if distinguishable_peptide is None:
-                        distinguishable_peptide = Peptide(protein.get_dataset(), hit_sequence)
-                        peptide.get_distinguishable_peptides().append(distinguishable_peptide)
-                        last_peptides.append(distinguishable_peptide)
+        il_groups = defaultdict(list)
+        for peptide in last_peptides:
+            key = peptide.get_dummy() + " - " + str(peptide.get_mod())
+            il_groups[key].append(peptide)
+
+        for group in il_groups.values():
+            if len(group) > 1:
+                for peptide in group:
+                    for other in group:
+                        if other is not peptide:
+                            peptide.get_distinguishable_peptides().append(other)
 
         return {
             'peptides': last_peptides,
@@ -502,20 +504,20 @@ class Protein:
             else:
                 uniprot = uniprot[:index]
                 base_protein = protein_map.get(uniprot)
-                if base_protein is not None:
+                if base_protein is None:
                     base_protein = Protein(protein.get_dataset(), uniprot, protein.get_title())
                     protein_map[uniprot] = base_protein
                     new_proteins.append(base_protein)
 
-                    isoform = Isoform()
-                    isoform.set_protein(base_protein)
-                    base_protein.get_isoforms().append(isoform)
-                    isoform.set_uniprot(protein.get_uniprot())
-                    isoform.set_id(protein.get_id().replace('PRT', 'ISO'))
-                    isoform.set_in_optimization_list(protein.get_uniprot() in optimized_set)
-                    for match in protein.get_peptide_matches():
-                        isoform.get_peptide_matches().append(match)
-                    isoforms.append(isoform)
+                isoform = Isoform()
+                isoform.set_protein(base_protein)
+                base_protein.get_isoforms().append(isoform)
+                isoform.set_uniprot(protein.get_uniprot())
+                isoform.set_id(protein.get_id().replace('PRT', 'ISO'))
+                isoform.set_in_optimization_list(protein.get_uniprot() in optimized_set)
+                for match in protein.get_peptide_matches():
+                    isoform.get_peptide_matches().append(match)
+                isoforms.append(isoform)
 
         return new_proteins, isoforms
     
