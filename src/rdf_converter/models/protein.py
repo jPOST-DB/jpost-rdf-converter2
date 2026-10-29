@@ -604,7 +604,30 @@ class Protein:
 
 
 
-    @staticmethod    
+    @staticmethod
+    def _optimization_sort_key(uniprot_id: str, protein: Protein) -> tuple:
+        title = protein.get_title() or ''
+        if title.startswith('sp|'):
+            db_priority = 0
+        elif title.startswith('tr|'):
+            db_priority = 1
+        else:
+            db_priority = 2
+
+        dash_idx = uniprot_id.rfind('-')
+        if dash_idx >= 0:
+            base = uniprot_id[:dash_idx]
+            try:
+                isoform_num = int(uniprot_id[dash_idx + 1:])
+            except ValueError:
+                isoform_num = 999999
+        else:
+            base = uniprot_id
+            isoform_num = 0
+
+        return (db_priority, base, isoform_num)
+
+    @staticmethod
     def optimize(proteins: list[Protein]) -> list[Protein]:
         load_dotenv()
         protein_parameter = int(os.getenv('PROTEIN_PARAMETER', '5000'))
@@ -641,7 +664,10 @@ class Protein:
         if len(uncovered_peptides) == 0:
             return [], 0.0
 
-        heap: list[tuple[int, int, str]] = []  # (-カバー数, 世代番号, uniprot_id)
+        priority_keys = {uid: Protein._optimization_sort_key(uid, protein_lookup[uid])
+                         for uid in protein_to_peptides}
+
+        heap: list[tuple[int, int, tuple, str]] = []
         current_generation = 0
         coverage_count_cache: dict[str, int] = {}
 
@@ -649,13 +675,13 @@ class Protein:
             coverage_count = len(peptide_set)
             if coverage_count > 0:
                 coverage_count_cache[uniprot_id] = coverage_count
-                heapq.heappush(heap, (-coverage_count, current_generation, uniprot_id))
+                heapq.heappush(heap, (-coverage_count, current_generation, priority_keys[uniprot_id], uniprot_id))
 
         selected_uniprots: list[str] = []
         total_cost = 0.0
 
         while len(uncovered_peptides) > 0 and len(heap) > 0:
-            neg_coverage, generation, candidate_uniprot = heapq.heappop(heap)
+            neg_coverage, generation, _pkey, candidate_uniprot = heapq.heappop(heap)
 
             recalculated_coverage = len(protein_to_peptides[candidate_uniprot] & uncovered_peptides)
             is_generation_outdated = generation != current_generation
@@ -663,7 +689,7 @@ class Protein:
 
             if is_generation_outdated and is_candidate_useful:
                 coverage_count_cache[candidate_uniprot] = recalculated_coverage
-                heapq.heappush(heap, (-recalculated_coverage, current_generation, candidate_uniprot))
+                heapq.heappush(heap, (-recalculated_coverage, current_generation, priority_keys[candidate_uniprot], candidate_uniprot))
             elif is_candidate_useful:
                 selected_uniprots.append(candidate_uniprot)
                 total_cost += 1.0
@@ -695,10 +721,19 @@ class Protein:
 
         protein_vars: dict[str, pulp.LpVariable] = {}
         for uniprot_id in protein_to_peptides.keys():
-            var = pulp.LpVariable(f'P_{uniprot_id}', cat='Binary')
+            safe_name = f'P_{uniprot_id}'.translate(pulp.LpVariable.trans)
+            var = prob.add_variable(safe_name, cat='Binary')
             protein_vars[uniprot_id] = var
 
-        prob += pulp.lpSum(protein_vars.values()), "Total_Proteins_Selected"
+        sorted_ids = sorted(protein_to_peptides.keys(),
+                            key=lambda uid: Protein._optimization_sort_key(uid, protein_lookup[uid]))
+        n = len(sorted_ids)
+        rank = {uid: i for i, uid in enumerate(sorted_ids)}
+
+        prob += pulp.lpSum(
+            (1.0 + rank[uid] / (n * n)) * var
+            for uid, var in protein_vars.items()
+        ), "Total_Proteins_Selected"
 
         for peptide in all_peptides:
             prob += (
@@ -710,7 +745,16 @@ class Protein:
                 f"Cover_Peptide_{peptide}"
             )
 
-        prob.solve(pulp.PULP_CBC_CMD(msg=False))
+        available = pulp.listSolvers(onlyAvailable=True)
+        if 'PULP_CBC_CMD' in available:
+            solver = pulp.getSolver('PULP_CBC_CMD', msg=False)
+        elif 'HiGHS' in available:
+            solver = pulp.getSolver('HiGHS', msg=False)
+        elif 'COIN_CMD' in available:
+            solver = pulp.getSolver('COIN_CMD', msg=False)
+        else:
+            solver = None
+        prob.solve(solver)
 
         selected_proteins = [
             protein_lookup[uniprot_id]
