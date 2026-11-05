@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from tokenize import String
 from typing import ClassVar
@@ -288,8 +289,10 @@ class Psm:
 
             mod_list = []
             if mod is not None:
-                if mod.find('(STY)') >= 0 and site in ('S', 'T', 'Y'):
-                    mod_list.append(mod.replace('(STY)', f'({site})'))
+                # 複数残基表記 (例: Phospho (STY), Deamidated (NQ)) は実際の残基に置き換える
+                m_multi = re.search(r'\(([A-Z]{2,})\)\s*$', mod)
+                if m_multi and site is not None and len(site) == 1 and site in m_multi.group(1):
+                    mod_list.append(mod[:m_multi.start()] + f'({site})')
                 else:
                     mod_list.append(mod)
 
@@ -311,7 +314,7 @@ class Psm:
                         if modification.get_unimod() == '21':
                             mod_info21 = f'Site:{site}, Position: {position}'
                             mod_set21.add(mod_info21)
-                        f.write(f'        a unimod:UNIMOD_{modification.get_unimod()}\n')
+                        f.write(f'        a unimod:UNIMOD_{modification.get_unimod()} ;\n')
                         psm_modification = PsmModification(modification, site, position)
                         self.modifications.append(psm_modification)
                     else:
@@ -366,8 +369,8 @@ class Psm:
             score = score_map['X!Tandem']
             score_id = 'MS_1001331'
             ev_id = 'MS_1001330'
-        elif 'Coment' in score_map:
-            score = score_map['Coment']
+        elif 'Comet' in score_map:
+            score = score_map['Comet']
             score_id = 'MS_1002252'
             ev_id = 'MS_1002257'
         elif 'MaxQuant' in score_map:
@@ -375,7 +378,7 @@ class Psm:
             score_id = 'MS_1002338'
             ev_id = 'MS_1001901'
 
-        if score_id is not None:
+        if score_id and score is not None:
             f.write('    sio:SIO_000216 [\n')
             f.write(f'        a obo:{score_id} ;\n')
             f.write(f'        sio:SIO_000300 {score}\n')

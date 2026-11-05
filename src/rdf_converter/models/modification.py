@@ -91,24 +91,30 @@ class Modification:
                             match_variable_site = pattern_variable_site.match(tokens[1])
 
                             if match_fixed_site:
-                                index = match_fixed_site.group(0)
+                                index = match_fixed_site.group(1)
                                 site = tokens[2].strip()
                                 if index in fixed_mod_map:
                                     fixed_mod_map[index]['site'] = site
                             elif match_variable_site:
-                                index = match_variable_site.group(0)
+                                index = match_variable_site.group(1)
                                 site = tokens[2].strip()
                                 if index in variable_mod_map:
                                     variable_mod_map[index]['site'] = site
+                            elif (match_fixed or match_variable) and tokens[1].endswith('-position'):
+                                # 'Protein N-term' 等は title に反映する (例: Acetyl (Protein N-term))
+                                index = (match_fixed or match_variable).group(1)
+                                mod_map = fixed_mod_map if match_fixed else variable_mod_map
+                                if index in mod_map:
+                                    mod_map[index]['position'] = tokens[2].strip()
                             elif match_fixed:
                                 if not tokens[1].endswith('-position'):
-                                    index = match_fixed.group(0)
+                                    index = match_fixed.group(1)
                                     values = tokens[2].replace('[', '').replace(']', '').split(',')
                                     fixed_mod_map[index] = {'unimod': values[1].strip().replace('UNIMOD:', ''),
                                                             'name': values[2].strip()}
                             elif match_variable:
                                 if not tokens[1].endswith('-position'):
-                                    index = match_variable.group(0)
+                                    index = match_variable.group(1)
                                     values = tokens[2].replace('[', '').replace(']', '').split(',')
                                     variable_mod_map[index] = {'unimod': values[1].strip().replace('UNIMOD:', ''),
                                                             'name': values[2].strip()}
@@ -119,7 +125,10 @@ class Modification:
                     modification.set_unimod(mod_dic['unimod'])
                     title = mod_dic['name']
                     if 'site' in mod_dic:
-                        title += f" ({mod_dic['site']})"
+                        if mod_dic.get('position', '').startswith('Protein ') and mod_dic['site'] in ('N-term', 'C-term'):
+                            title += f" ({mod_dic['position']})"
+                        else:
+                            title += f" ({mod_dic['site']})"
                         modification.set_site(mod_dic['site'])
                     modification.set_title(title)
                     fixed_mods.append(modification)
@@ -129,7 +138,10 @@ class Modification:
                     modification.set_unimod(mod_dic['unimod'])
                     title = mod_dic['name']
                     if 'site' in mod_dic:
-                        title += f" ({mod_dic['site']})"
+                        if mod_dic.get('position', '').startswith('Protein ') and mod_dic['site'] in ('N-term', 'C-term'):
+                            title += f" ({mod_dic['position']})"
+                        else:
+                            title += f" ({mod_dic['site']})"
                         modification.set_site(mod_dic['site'])
                     modification.set_title(title)
                     variable_mods.append(modification)
