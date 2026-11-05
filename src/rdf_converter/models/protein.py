@@ -330,6 +330,12 @@ class Protein:
 
     @staticmethod
     def create_db_index(fasta_path: str, work_dir: str) -> Path:
+        # 事前作成済みのインデックスを再利用 (同一 FASTA で毎回作り直さないため)
+        prebuilt = os.getenv('PEPTIDEMATCH_DB_INDEX')
+        if prebuilt and Path(prebuilt).is_dir():
+            logger.info(f'Using prebuilt PeptideMatch DB index: {prebuilt}')
+            return Path(prebuilt).resolve()
+
         java_bin, classpath = Protein._build_peptidematch_classpath()
 
         dir = Path(work_dir)
