@@ -340,11 +340,38 @@ class Peptide:
                     seen_ids_by_dm[key].add(pid)
                     group_by_dm_list[key].append(p)
 
+        # PeptideMatch は I/L 同一視 (-e) で検索しているため、I/L を入れ替えたヒット
+        # (MatchedLEqIPositions あり) も含まれる。UniquePeptide は配列が完全一致するタンパク質が 1 つ、
+        # UniquePeptideAtMsLevel は I/L を区別できない MS レベルでも 1 つ (jpost.owl の定義どおり、
+        # 配列は一意だが I/L 違いで他のタンパク質にも当たるものは UniquePeptide + SharedPeptideAtMsLevel)
+        exact_freq = defaultdict(int)
+        for protein in proteins:
+            matches = list(protein.get_peptide_matches())
+            for iso in protein.get_isoforms():
+                matches.extend(iso.get_peptide_matches())
+            # Hit 配列 (タンパク質側の実配列) がペプチド配列と一致するものだけを完全一致とする
+            # (MatchedLEqIPositions は空のことがあるため Hit 配列で判定)
+            exact_seqs = set()
+            for m in matches:
+                seq = m.get_peptide().get_sequence()
+                hit = m.get_hit_sequence()
+                if hit:
+                    if hit == seq:
+                        exact_seqs.add(seq)
+                elif not m.get_matched_l_eq_i_positions():
+                    exact_seqs.add(seq)
+            for seq in exact_seqs:
+                exact_freq[seq] += 1
+
         for peptide in peptides:
             seq = peptide.get_sequence()
             dummy = peptide.get_dummy()
-            peptide.set_unique(seq_freq.get(seq, 0) <= 1)
-            peptide.set_unique_at_mslevel(dummy_freq.get(dummy, 0) <= 1)
+            n_exact = exact_freq.get(seq, 0)
+            n_ms = dummy_freq.get(dummy, 0)
+            # 完全一致がない (I/L 入れ替えでのみヒット) 場合は MS レベルの数で判定
+            unique = n_exact <= 1 if n_exact > 0 else n_ms <= 1
+            peptide.set_unique(unique)
+            peptide.set_unique_at_mslevel(unique and n_ms <= 1)
 
 
 
