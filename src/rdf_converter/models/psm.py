@@ -462,16 +462,6 @@ class Psm:
                             f.write('            ]\n')
                             f.write('        ] ;\n')
                     if is_not_empty(right):
-                        array = right.split('+')
-                        f.write("        faldo:location [\n")
-                        f.write("            a faldo:OneOfPosition ;\n")
-                        array_counter = 0
-                        for array_element in array:
-                            array_counter += 1
-                            site_pos = array_element.split(":")
-                            site = ''
-
-                    if is_not_empty(right):
                         array = right.split("+")
                         f.write("        faldo:location [\n")
                         f.write("            a faldo:OneOfPosition ;\n")
@@ -495,7 +485,7 @@ class Psm:
                                 if array_counter < len(array):
                                     f.write(" ;\n")
                                 f.write("\n")
-                    f.write("        ]\n")
+                        f.write("        ]\n")
                     f.write("    ] ;\n")
 
 
