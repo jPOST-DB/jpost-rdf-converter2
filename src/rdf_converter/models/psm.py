@@ -312,7 +312,7 @@ class Psm:
                     f.write('    jpost:hasModification [\n')
                     if modification is not None:
                         if modification.get_unimod() == '21':
-                            mod_info21 = f'Site:{site}, Position: {position}'
+                            mod_info21 = f'Site:{site}, Position:{position}'
                             mod_set21.add(mod_info21)
                         f.write(f'        a unimod:UNIMOD_{modification.get_unimod()} ;\n')
                         psm_modification = PsmModification(modification, site, position)

@@ -88,6 +88,30 @@ class Enzyme:
 
 
     @staticmethod
+    def read_modifications(tag, name: str) -> list[Modification]:
+        """<fixedModification id="UNIMOD:4#C">Carbamidomethyl (C)</fixedModification> 形式を読む"""
+        mods = []
+        titles = set()
+        for mod_tag in tag.findall(name):
+            mod_id = (mod_tag.get('id') or '').strip()
+            title = (mod_tag.text or '').strip()
+            if not mod_id.startswith('UNIMOD:') or not title or title in titles:
+                continue
+            titles.add(title)
+            unimod, _, site = mod_id[len('UNIMOD:'):].partition('#')
+            if site in ('ProteinN-term', 'Protein N-term'):
+                site = 'N-term'
+            elif site in ('ProteinC-term', 'Protein C-term'):
+                site = 'C-term'
+            modification = Modification()
+            modification.set_unimod(unimod.strip())
+            modification.set_title(title)
+            if site:
+                modification.set_site(site.strip())
+            mods.append(modification)
+        return mods
+
+    @staticmethod
     def read_enzyme(dataset: DataSet, meta_path: str) -> Enzyme:
         tree = ET.parse(meta_path)
         root = tree.getroot()
@@ -108,6 +132,12 @@ class Enzyme:
                     enzyme.get_enzymes().append(enzyme_id.strip())
             
             fixedMods, variableMods = Modification.get_modifications_from_jpost_repo(dataset.get_project().get_id())
+            if not fixedMods and not variableMods:
+                # repository の result ファイルが mzTab でない (MGF 等) 場合は、メタデータ XML の修飾定義 (UNIMOD 付き) を使う
+                fixedMods = Enzyme.read_modifications(tag, 'fixedModification')
+                variableMods = Enzyme.read_modifications(tag, 'variableModification')
+                if fixedMods or variableMods:
+                    logger.info('Modifications are taken from the metadata XML (not found in repository mzTab)')
             
             for mod in fixedMods:
                 enzyme.fixed_mods.append(mod)
