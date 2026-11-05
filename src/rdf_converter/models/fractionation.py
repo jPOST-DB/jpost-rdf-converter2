@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from ..utils.string_tool import is_not_empty
+from ..utils.string_tool import is_not_empty, escape_ttl
 import logging
 import xml.etree.ElementTree as ET
 
@@ -133,7 +133,7 @@ class Fractionation:
         if is_not_empty(self.subcellular_fractionation) \
                 or is_not_empty(self.subcellular_fractions) \
                 or is_not_empty(self.subcellular_replicates):
-            counter
+            counter += 1
             sub_fractionation = SubFractionation(
                 f'{self.id}_{counter}',
                 self.subcellular_fractionation,
@@ -185,7 +185,7 @@ class Fractionation:
 
             label = sub_fractionation.get_fractionation()
             if is_not_empty(label):
-                f.write(f'        rdfs:label "{label}" ;\n')
+                f.write(f'        rdfs:label "{escape_ttl(label)}" ;\n')
 
             replicates = sub_fractionation.get_replicates()
             if is_not_empty(replicates):

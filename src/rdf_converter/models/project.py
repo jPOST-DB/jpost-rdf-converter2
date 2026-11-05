@@ -107,39 +107,36 @@ class Project:
         f.write(f':{self.get_id()}\n')
         f.write(f'    dct:title "{escape_ttl(self.get_title())}" ;\n')
         f.write(f'    dct:identifier "{self.get_id()}" ;\n')
-        f.write(f'    rdfs:label "{self.get_id()}" ;\n')
-        f.write(f'    rdfs:seeAlso pxd:{self.get_pxd()} ;\n')
+        f.write(f'    rdfs:label "{escape_ttl(self.get_title())}" ;\n')
+        if is_not_empty(self.get_pxd()):
+            f.write(f'    rdfs:seeAlso pxd:{self.get_pxd()} ;\n')
         f.write(f'    rdfs:seeAlso jrepo:{self.get_id()} ;\n')
-        f.write(f'    dct:description "{escape_ttl(self.get_description())}" ;\n')
-        f.write(f'    dct:dateSubmitted "{self.get_date_submitted()}"^^xsd:date ;\n')
-        f.write(f'    dct:date "{self.get_date()}"^^xsd:date .\n\n')
+        if is_not_empty(self.get_description()):
+            f.write(f'    dct:description "{escape_ttl(self.get_description())}" ;\n')
+        f.write(f'    foaf:page jrepo:{self.get_id()} ;\n')
+        if is_not_empty(self.get_date_submitted()):
+            f.write(f'    dct:dateSubmitted "{self.get_date_submitted()}"^^xsd:date ;\n')
+        if is_not_empty(self.get_date()):
+            f.write(f'    dct:date "{self.get_date()}"^^xsd:date ;\n')
 
         for contributor in self.get_contributors():
             name = contributor.get_name()
             organization = contributor.get_organization()
             investigator = contributor.get_investigator()
-
             f.write('    dct:contributor [\n')
             f.write('        a obo:MS_1002037 ;\n')
             f.write('        a foaf:Person ;\n')
-
             if is_not_empty(organization):
                 f.write(f'        vcard:organization-name "{escape_ttl(organization)}" ;\n')
-
-            if is_not_empty(name):
-                f.write(f'        foaf:name "{escape_ttl(name)}" ;\n')
-
+            f.write(f'        foaf:name "{escape_ttl(name)}"\n')
             f.write('    ] ;\n')
-
             if is_not_empty(investigator):
                 f.write('    dct:contributor [\n')
                 f.write('        a obo:MS_1002332 ;\n')
                 f.write('        a foaf:Person ;\n')
-                f.write(f'        foaf:name "{escape_ttl(investigator)}" ;\n')
+                f.write(f'        foaf:name "{escape_ttl(investigator)}"\n')
                 f.write('    ] ;\n')
-
-            f.write('    a jpost:Project .\n\n')
-
+        f.write('    a jpost:Project .\n\n')
 
     @staticmethod
     def read_project(xml_path: str) -> Project:
@@ -164,7 +161,8 @@ class Project:
         project.set_date_submitted(created_date)
         project.set_date(date)
 
-        contributors = node.findall('Contributor')
+        # 連絡先は <Project> の兄弟要素 <Contact> (Name / Affiliation / PrincipalInvestigator)
+        contributors = root.findall('Contact')
         for contrib in contributors:
             contributor = Contributor()
             name = contrib.find('Name')

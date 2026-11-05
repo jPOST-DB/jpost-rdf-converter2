@@ -76,11 +76,17 @@ class DataSet:
         return self.number
     
 
-    def to_ttl(self, f) -> None:
+    def to_ttl(self, f, proteins: list | None = None, peptides: list | None = None) -> None:
+        # プロジェクトのメタデータ (title 等) は JPST*.ttl 側に出力するので、ここでは型と hasDataset のみ
         project = self.get_project()
-        f.write(f':{project.get_id()} jpost:hasDataset :{self.get_id()} .\n\n')
-        f.write(f':{self.get_id()} a jpost:DataSet ;\n')
+        f.write(f':{project.get_id()} a jpost:Project ;\n')
+        f.write(f'    jpost:hasDataset :{self.get_id()} .\n\n')
+        f.write(f':{self.get_id()} a jpost:Dataset ;\n')
         f.write(f'    jpost:hasProfile bid:PRF{self.get_number()} ;\n')
+        for protein in proteins or []:
+            f.write(f'    jpost:hasProtein :{protein.get_id()} ;\n')
+        for peptide in peptides or []:
+            f.write(f'    jpost:hasPeptide :{peptide.get_id()} ;\n')
         f.write(f'    dct:identifier "{self.get_id()}" .\n\n')
         f.write(f'bid:PRF{self.get_number()} a jpost:Profile .\n\n')
 

@@ -36,5 +36,5 @@ class Spectrum:
 
     def to_ttl(self, f) -> None:
         f.write(f'bid:{self.id} a jpost:Spectrum ;\n')
-        f.write(f'    rdfs:label "{self.id}" ;\n')
+        f.write(f'    rdfs:label "{self.scan}" ;\n')
         f.write(f'    jpost:inRawData bid:{self.rawdata.get_id()} .\n\n')

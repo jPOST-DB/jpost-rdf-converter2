@@ -141,8 +141,7 @@ class DatasetConverter:
     ) -> None:
         with open(ttl_path, 'w', encoding='utf-8') as f:
             self.write_header(f)
-            project.to_ttl(f)
-            dataset.to_ttl(f)
+            dataset.to_ttl(f, proteins, peptides)
 
             for spectrum in spectra:
                 spectrum.to_ttl(f)
@@ -254,19 +253,19 @@ class DatasetConverter:
         f.write('    sio:SIO_000216 [\n')
         f.write('        a jpost:NumOfSpectra ;\n')
         f.write(f'        sio:SIO_000300 {len(spectrum_set)} ;\n')
-        f.write('        rdfs:label "Number of Spectra"\n')
+        f.write('        rdfs:label "Number of spectra"\n')
         f.write('    ] ;\n')
 
         f.write('    sio:SIO_000216 [\n')
         f.write('        a jpost:NumOfPeptides ;\n')
         f.write(f'        sio:SIO_000300 {len(peptides)} ;\n')
-        f.write('        rdfs:label "Number of Peptides"\n')
+        f.write('        rdfs:label "Number of peptides"\n')
         f.write('    ] ;\n')
 
         f.write('    sio:SIO_000216 [\n')
         f.write('        a jpost:NumOfMatchedProteins ;\n')
         f.write(f'        sio:SIO_000300 {len(proteins)} ;\n')
-        f.write('        rdfs:label "Number of Matched Proteins"\n')
+        f.write('        rdfs:label "Number of matched proteins"\n')
         f.write('    ] ;\n')
 
         f.write('    sio:SIO_000216 [\n')

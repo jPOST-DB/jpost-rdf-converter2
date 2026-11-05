@@ -69,7 +69,9 @@ class Isoform:
         if self.is_in_optimization_list():
             f.write(f'    a jpost:RepresentativeIsoform ;\n')
 
-            for peptide_match in self.peptide_matchs:
-                peptide_match.to_ttl(f)
+        from .protein import Protein
+        Protein.write_match_statistics(f, self.peptide_matchs)
+        for peptide_match in self.peptide_matchs:
+            peptide_match.to_ttl(f, self.id)
 
         f.write(f'    a jpost:ProteinIsoform .\n\n')

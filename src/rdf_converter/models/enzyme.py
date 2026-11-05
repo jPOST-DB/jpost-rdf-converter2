@@ -67,11 +67,14 @@ class Enzyme:
         enzyme = self
         dataset = self.get_dataset()
 
-        f.write(f'bid:PRF{dataset.get_number()} jpost:hasEnzyme bid:{enzyme.get_id()} .\n')
+        f.write(f'bid:PRF{dataset.get_number()} jpost:hasEnzymeAndModification bid:{enzyme.get_id()} .\n')
         f.write(f'bid:{enzyme.get_id()}\n')
 
         for element in enzyme.get_enzymes():
             f.write(f'    jpost:enzyme obo:{element.replace(":", "_")} ;\n')
+
+        if is_not_empty(enzyme.get_species()):
+            f.write(f'    jpost:species taxonomy:{enzyme.get_species()} ;\n')
 
 
         for mod in enzyme.get_fixed_mods():
@@ -84,7 +87,7 @@ class Enzyme:
             mod.to_ttl(f)
             f.write('    ] ;\n')
 
-        f.write('    a jpost:EnzymeAndModifications .\n\n')
+        f.write('    a jpost:EnzymeAndModification .\n\n')
 
 
     @staticmethod
@@ -122,13 +125,13 @@ class Enzyme:
 
         if tag is not None:
             taxonomy = tag.find('taxonomy')
-            if taxonomy is not None and taxonomy.text is not None:
-                enzyme.set_species(taxonomy.text.strip())
+            if taxonomy is not None and is_not_empty(taxonomy.get('id')):
+                enzyme.set_species(taxonomy.get('id').strip())
             
-            enzyme_tag = tag.find('enzyme')
-            if enzyme_tag is not None:
+            # <enzyme> は複数ありうる (id のないもの (例: chymotrypsin) もある)。id のあるものを全て出力する
+            for enzyme_tag in tag.findall('enzyme'):
                 enzyme_id = enzyme_tag.get('id')
-                if is_not_empty(enzyme_id):
+                if is_not_empty(enzyme_id) and enzyme_id.strip() not in enzyme.get_enzymes():
                     enzyme.get_enzymes().append(enzyme_id.strip())
             
             fixedMods, variableMods = Modification.get_modifications_from_jpost_repo(dataset.get_project().get_id())

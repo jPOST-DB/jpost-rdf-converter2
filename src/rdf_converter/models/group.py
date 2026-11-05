@@ -61,7 +61,7 @@ class Group:
 
 
     def to_ttl(self, f) -> None:
-        f.write(f':{self.get_id()} a bid:ProteinGroup .\n\n')
+        f.write(f'bid:{self.get_id()} a jpost:ProteinGroup .\n\n')
 
 
     @staticmethod

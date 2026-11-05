@@ -74,7 +74,8 @@ class PeptideMatch:
     def get_matched_l_eq_i_positions(self) -> str | None:
         return self.matched_l_eq_i_positions
     
-    def to_ttl(self, f) -> None:
+    def to_ttl(self, f, reference_id: str) -> None:
+        # faldo:reference はペプチドではなく、位置の基準となる配列 (タンパク質/アイソフォーム)
         f.write(f'    jpost:hasPeptideEvidence [\n')
         f.write(f'        a jpost:PeptideEvidence ;\n')
         f.write(f'        jpost:hasPeptide :{self.get_peptide().get_id()} ;\n')
@@ -82,12 +83,12 @@ class PeptideMatch:
         f.write(f'            a faldo:Region ;\n')
         f.write(f'            faldo:begin [\n')
         f.write(f'                a faldo:ExactPosition ;\n')
-        f.write(f'                faldo:reference :{self.get_peptide().get_id()} ;\n')
+        f.write(f'                faldo:reference :{reference_id} ;\n')
         f.write(f'                faldo:position {self.get_start()} ;\n')
         f.write(f'            ] ;\n')
         f.write(f'            faldo:end [\n')
         f.write(f'                a faldo:ExactPosition ;\n')
-        f.write(f'                faldo:reference :{self.get_peptide().get_id()} ;\n')
+        f.write(f'                faldo:reference :{reference_id} ;\n')
         f.write(f'                faldo:position {self.get_end()} ;\n')
         f.write(f'            ] ;\n')
         f.write(f'        ] ;\n')
@@ -288,26 +289,10 @@ class Protein:
         for leading in self.get_leading_proteins():
             f.write(f'    jpost:hasLeadingProtein :{leading.get_id()} ;\n')
 
-        psm_count = 0
-        seen_pep_ids = set()
-        for match in self.get_peptide_matches():
-            pep_id = id(match.get_peptide())
-            if pep_id not in seen_pep_ids:
-                seen_pep_ids.add(pep_id)
-                psm_count += len(match.get_peptide().get_psms())
-
-        f.write(f'    sio:SIO_000216 [\n')
-        f.write(f'        rdf:type obo:MS_1001097 ;\n')
-        f.write(f'        sio:SIO_000300 {len(self.get_peptide_matches())}\n')
-        f.write(f'    ] ;\n')
-
-        f.write(f'    sio:SIO_000216 [\n')
-        f.write(f'        rdf:type obo:MS_1002153 ;\n')
-        f.write(f'        sio:SIO_000300 {psm_count}\n')
-        f.write(f'    ] ;\n')
+        Protein.write_match_statistics(f, self.get_peptide_matches())
 
         for match in self.get_peptide_matches():
-            match.to_ttl(f)
+            match.to_ttl(f, self.get_id())
         f.write(f'    a jpost:Protein .\n')
         f.write(f'\n')
 
@@ -489,6 +474,27 @@ class Protein:
         }
     
     @staticmethod
+    def write_match_statistics(f, matches: list[PeptideMatch]) -> None:
+        """MS:1001097 (ペプチド数) と MS:1002153 (PSM 数) を出力する。Protein と Isoform で共通"""
+        psm_count = 0
+        seen_pep_ids = set()
+        for match in matches:
+            pep_id = id(match.get_peptide())
+            if pep_id not in seen_pep_ids:
+                seen_pep_ids.add(pep_id)
+                psm_count += len(match.get_peptide().get_psms())
+
+        f.write(f'    sio:SIO_000216 [\n')
+        f.write(f'        rdf:type obo:MS_1001097 ;\n')
+        f.write(f'        sio:SIO_000300 {len(matches)}\n')
+        f.write(f'    ] ;\n')
+
+        f.write(f'    sio:SIO_000216 [\n')
+        f.write(f'        rdf:type obo:MS_1002153 ;\n')
+        f.write(f'        sio:SIO_000300 {psm_count}\n')
+        f.write(f'    ] ;\n')
+
+    @staticmethod
     def create_isoforms(proteins: list[Protein], optimized_proteins: list[Protein]) -> list[Protein]:
         new_proteins = []
         isoforms = []
@@ -564,9 +570,12 @@ class Protein:
                     has_same = False
                     if S in exact_map:
                         p.set_same(True)
+                        leading_list = p.get_leading_proteins()
                         for lead_u in exact_map[S]:
                             protein_map[lead_u].set_anchor(True)
                             has_same = True
+                            if not any(lp.get_uniprot() == lead_u for lp in leading_list):
+                                leading_list.append(protein_map[lead_u])
 
                     if not has_same:
                         for lead_u, L in leading_items:

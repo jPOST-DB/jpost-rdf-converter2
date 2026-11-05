@@ -181,7 +181,9 @@ class Sample:
                     elif key == 'Disease class':
                         sample.set_disease_class(tokens[2].strip())
                     elif key == 'Disease':
-                        sample.set_disease(tokens[2].strip())
+                        # Disease|<名前>|<ID> (Cell line と同じ形式)。ID があれば URI、なければ名前をラベルにする
+                        sample.set_disease(tokens[1].strip())
+                        sample.set_disease_id(tokens[2].strip())
                     elif key == 'Organ':
                         sample.set_organ(tokens[2].strip())
 

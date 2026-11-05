@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 from .spectrum import Spectrum
 from .modification import Modification
-from ..utils.string_tool import is_not_empty
+from ..utils.string_tool import is_not_empty, escape_ttl
 
 logger = get_logger(__name__)
 
@@ -310,6 +310,7 @@ class Psm:
                     mod_set.add(mod_info)
 
                     f.write('    jpost:hasModification [\n')
+                    f.write('        a jpost:Modification ;\n')
                     if modification is not None:
                         if modification.get_unimod() == '21':
                             mod_info21 = f'Site:{site}, Position:{position}'
@@ -320,7 +321,7 @@ class Psm:
                     else:
                         if mod_element not in not_found:
                             not_found.append(mod_element)                            
-                        f.write(f'        rdfs:label "{mod_element} " ;\n')
+                        f.write(f'        rdfs:label "{escape_ttl(mod_element)}" ;\n')
 
                     if site is not None:
                         f.write(f'        jpost:modificationSite "{site}" ;\n')
@@ -345,15 +346,18 @@ class Psm:
         f.write(f'        sio:SIO_000300 {self.get_calc_mz()};\n')
         f.write('   ] ;\n')
 
-        f.write('    sio:SIO_000216 [\n')
-        f.write('        sio:SIO_000221 obo:MS_1000041 ;\n')
-        f.write(f'        sio:SIO_000300 {self.get_charge()};\n')
-        f.write('   ] ;\n')
+        if is_not_empty(self.get_charge()):
+            f.write('    sio:SIO_000216 [\n')
+            f.write('        a obo:MS_1000041 ;\n')
+            f.write(f'        sio:SIO_000300 {self.get_charge()} ;\n')
+            f.write('   ] ;\n')
 
-        f.write('    sio:SIO_000216 [\n')
-        f.write('        sio:SIO_000221 obo:MS_1000894 ;\n')
-        f.write(f'        sio:SIO_000300 {self.get_rt()};\n')
-        f.write('   ] ;\n')
+        if is_not_empty(self.get_rt()):
+            f.write('    sio:SIO_000216 [\n')
+            f.write('        a obo:MS_1000894 ;\n')
+            f.write(f'        sio:SIO_000300 {self.get_rt()} ;\n')
+            f.write('        sio:SIO_000221 obo:UO_0000031 ;\n')
+            f.write('   ] ;\n')
 
         score_map = self.get_score_map()
         ev = score_map.get('ev')
@@ -392,7 +396,7 @@ class Psm:
                 f.write('   ] ;\n')
 
         self.write_phospho(f, mod_set21)
-        f.write('    a jpost:Psm .\n\n')
+        f.write('    a jpost:PeptideSpectrumMatch .\n\n')
         
         return not_found
 
